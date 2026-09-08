@@ -11,7 +11,8 @@
 
   let mounted = false;
   let mode = 'week';                 // week | today | manage
-  const HOUR_PX = 46;                // vertical scale of the timetable
+  let fitting = false;               // guards the single fit-correction pass
+  let fitAdjust = 0;                 // pixels the measured chrome needs back
   const DAY_LETTERS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
   /** Weekday order follows the user's "week starts on" preference. */
@@ -113,38 +114,110 @@
 
   // ------------------------------------------------------------- timetable
 
-  /** The hour window the timetable needs to show, rounded to whole hours. */
-  function timeRange() {
-    let min = 24 * 60;
-    let max = 0;
-    let found = false;
-    for (const routine of State.Routines.all()) {
-      if (!routine.active) continue;
-      for (const step of routine.steps) {
-        const start = DT.toMinutes(step.time);
-        if (start === null) continue;
-        found = true;
-        min = Math.min(min, start);
-        max = Math.max(max, start + (step.duration || 30));
+  const MIN_PX_PER_MIN = 0.36;       // ~22px/hour: below this nothing is legible
+  const MAX_PX_PER_MIN = 0.85;       // ~51px/hour: above this it just looks sparse
+  const GAP_PX = 18;                 // height of a collapsed empty stretch
+  const EDGE_PAD = 30;               // breathing room either side of a busy run
+  const MIN_GAP = 90;                // an empty run shorter than this is not hidden
+
+  /** Every occupied minute range across the visible week, merged. */
+  function occupiedIntervals(days) {
+    const spans = [];
+    for (const date of days) {
+      for (const step of State.Routines.stepsFor(DT.key(date))) {
+        if (step.startMinutes === null) continue;
+        spans.push([step.startMinutes, step.endMinutes]);
       }
     }
-    if (!found) return { start: 7 * 60, end: 22 * 60 };
-    let start = Math.floor(min / 60) * 60;
-    let end = Math.ceil(max / 60) * 60;
+    spans.sort((a, b) => a[0] - b[0]);
+    const merged = [];
+    for (const span of spans) {
+      const last = merged[merged.length - 1];
+      if (last && span[0] <= last[1]) last[1] = Math.max(last[1], span[1]);
+      else merged.push([span[0], span[1]]);
+    }
+    return merged;
+  }
 
-    // Pull the current hour into view when it is near the scheduled window, so
-    // the "now" line is visible during the hours the routines actually cover.
-    // Far outside it (the small hours), stretching the grid would just add
-    // empty space, so the window stays tight.
-    const now = new Date().getHours() * 60 + new Date().getMinutes();
-    if (now >= start - 90 && now <= end + 90) {
-      start = Math.min(start, Math.floor(now / 60) * 60);
-      end = Math.max(end, Math.ceil(now / 60) * 60);
+  /**
+   * The stretches of the day worth drawing.
+   *
+   * A week of routines is mostly empty space — nothing happens between lunch
+   * and the evening — and scrolling past dead hours to find the next block is
+   * exactly what makes a timetable useless. Long empty runs collapse into a
+   * thin marked band so the whole week fits on one screen.
+   */
+  function buildSegments(days, pad) {
+    const edge = pad === undefined ? EDGE_PAD : pad;
+    const occupied = occupiedIntervals(days);
+    const now = new Date().getHours() + new Date().getMinutes() / 60;
+
+    if (!occupied.length) return [{ start: 7 * 60, end: 22 * 60 }];
+
+    const segments = [];
+    for (const [from, to] of occupied) {
+      const start = Math.max(0, Math.floor((from - edge) / 60) * 60);
+      const end = Math.min(24 * 60, Math.ceil((to + edge) / 60) * 60);
+      const last = segments[segments.length - 1];
+      if (last && start - last.end < MIN_GAP) last.end = Math.max(last.end, end);
+      else segments.push({ start, end });
     }
 
-    // Always show a readable window, even for a single early step.
-    if (end - start < 6 * 60) end = Math.min(24 * 60, start + 6 * 60);
-    return { start, end: Math.max(end, start + 60) };
+    // Keep the current hour on the grid when it is close to the day's work, so
+    // the now-line has somewhere to sit.
+    const nowMin = Math.floor(now) * 60;
+    const inside = segments.some(s => nowMin >= s.start && nowMin < s.end);
+    if (!inside) {
+      const near = segments.find(s => Math.abs(s.start - nowMin) <= MIN_GAP || Math.abs(s.end - nowMin) <= MIN_GAP);
+      if (near) {
+        near.start = Math.min(near.start, nowMin);
+        near.end = Math.max(near.end, nowMin + 60);
+      }
+    }
+    return segments;
+  }
+
+  /** How much vertical room the grid actually has before it would scroll. */
+  function availableBodyHeight() {
+    const views = $('#views');
+    if (!views) return 320;
+    const momentum = $('#routineMomentum');
+    const bar = document.querySelector('.routine-bar');
+    const chrome = (momentum ? momentum.offsetHeight : 0)
+      + (bar ? bar.offsetHeight : 0)
+      + 104;                        // day header, legend and the margins between
+    return Math.max(200, views.clientHeight - chrome);
+  }
+
+  /**
+   * Turn segments into laid-out rows, and give back a minutes-to-pixels map.
+   * Collapsed gaps break the straight-line mapping, so every y comes from here.
+   */
+  function buildScale(segments, pxPerMin) {
+    const rows = [];
+    let y = 0;
+    segments.forEach((seg, i) => {
+      if (i > 0) {
+        rows.push({ gap: true, y, height: GAP_PX, from: segments[i - 1].end, to: seg.start });
+        y += GAP_PX;
+      }
+      const height = (seg.end - seg.start) * pxPerMin;
+      rows.push({ seg, y, height });
+      y += height;
+    });
+    return {
+      rows,
+      height: y,
+      yOf(minutes) {
+        for (const row of rows) {
+          if (!row.seg) continue;
+          if (minutes >= row.seg.start && minutes <= row.seg.end) {
+            return row.y + (minutes - row.seg.start) * pxPerMin;
+          }
+        }
+        return null;                // sits inside a collapsed gap
+      }
+    };
   }
 
   /** Lay overlapping blocks side by side instead of stacking them. */
@@ -169,28 +242,68 @@
     const routines = State.Routines.all();
     if (!routines.length) { host.innerHTML = ''; renderEmpty(host); return; }
 
-    const range = timeRange();
-    const span = range.end - range.start;
-    const bodyHeight = (span / 60) * HOUR_PX;
     const days = weekDays();
+    let segments = buildSegments(days);
+    let totalMinutes = segments.reduce((sum, s) => sum + (s.end - s.start), 0);
+    let gapCount = Math.max(0, segments.length - 1);
+
+    // Scale the grid so the whole week lands on one screen, but never below
+    // the point where a block stops being readable.
+    const roomFor = mins =>
+      (availableBodyHeight() - gapCount * GAP_PX - fitAdjust) / Math.max(1, mins);
+    let pxPerMin = Math.max(MIN_PX_PER_MIN, Math.min(MAX_PX_PER_MIN, roomFor(totalMinutes)));
+
+    // Bottomed out on a short window: drop the padding hours around each run
+    // and the legend. That buys back the space before resorting to a
+    // scrollbar, which is the thing this view exists to avoid.
+    const tight = pxPerMin <= MIN_PX_PER_MIN;
+    if (tight) {
+      segments = buildSegments(days, 0);
+      totalMinutes = segments.reduce((sum, s) => sum + (s.end - s.start), 0);
+      gapCount = Math.max(0, segments.length - 1);
+      pxPerMin = Math.max(MIN_PX_PER_MIN, Math.min(MAX_PX_PER_MIN, roomFor(totalMinutes)));
+    }
+    const scale = buildScale(segments, pxPerMin);
+
     const today = DT.todayKey();
     const nowMinutes = new Date().getHours() * 60 + new Date().getMinutes();
+    const settings = State.settings();
 
-    // Header row of weekday names.
     const head = days.map(date => {
       const key = DT.key(date);
-      const isToday = key === today;
-      return `<div class="tt-dayhead${isToday ? ' today' : ''}">
+      return `<div class="tt-dayhead${key === today ? ' today' : ''}">
         <b>${esc(DT.DAY_NAMES[date.getDay()].slice(0, 3))}</b>
         <span>${date.getDate()}</span>
       </div>`;
     }).join('');
 
-    // Hour labels down the gutter.
-    const hours = [];
-    for (let m = range.start; m <= range.end; m += 60) {
-      hours.push(`<span class="tt-hour" style="top:${((m - range.start) / span) * 100}%">${esc(fmt(m))}</span>`);
-    }
+    // Hour labels and their gridlines, per visible stretch.
+    const labels = [];
+    const lines = [];
+    scale.rows.forEach((row, i) => {
+      if (!row.seg) return;
+      // A segment that runs into a fold drops its closing label: the band
+      // already says how long the gap is, and the two would sit on top of
+      // each other.
+      const foldsAfter = !!scale.rows[i + 1] && scale.rows[i + 1].gap;
+      for (let m = row.seg.start; m <= row.seg.end; m += 60) {
+        const y = scale.yOf(m);
+        if (y === null) continue;
+        if (!(foldsAfter && m === row.seg.end)) {
+          labels.push(`<span class="tt-hour" style="top:${y}px">${esc(fmt(m))}</span>`);
+        }
+        if (m > row.seg.start) lines.push(`<span class="tt-line" style="top:${y}px"></span>`);
+      }
+    });
+
+    // Collapsed stretches get a marked band, so skipped hours are visible as a
+    // deliberate fold rather than a missing chunk of the day.
+    const gaps = scale.rows.filter(r => r.gap).map(row => {
+      const hours = Math.round((row.to - row.from) / 60);
+      return `<span class="tt-gap" style="top:${row.y}px;height:${row.height}px">
+        <i>${hours}h free</i>
+      </span>`;
+    }).join('');
 
     const columns = days.map(date => {
       const key = DT.key(date);
@@ -198,50 +311,51 @@
       const steps = packColumns(State.Routines.stepsFor(key).filter(s => s.startMinutes !== null));
 
       const blocks = steps.map(step => {
-        const top = ((step.startMinutes - range.start) / span) * 100;
-        const height = Math.max(2.5, ((step.endMinutes - step.startMinutes) / span) * 100);
+        const top = scale.yOf(step.startMinutes);
+        if (top === null) return '';
+        const bottom = scale.yOf(step.endMinutes);
+        const height = Math.max(10, (bottom === null ? top + 10 : bottom) - top - 1);
         const width = 100 / step._lanes;
         const left = width * step._lane;
         const cat = State.categoryOf(step.category);
         const late = isToday && !step.done && step.endMinutes < nowMinutes;
         const live = isToday && !step.done
           && step.startMinutes <= nowMinutes && step.endMinutes > nowMinutes;
-        // A 15-minute block is ~11px tall: it can show a title or a time,
-        // not both, so short blocks drop the time and keep the words.
-        const heightPx = ((step.endMinutes - step.startMinutes) / 60) * HOUR_PX;
+
         const classes = ['tt-block'];
-        if (heightPx < 26) classes.push('tiny');
+        if (height < 26) classes.push('tiny');
         if (step.done) classes.push('done');
         if (late) classes.push('late');
         if (live) classes.push('live');
         if (!isToday && key < today) classes.push('past');
 
+        const when = DT.formatTime(step.time, settings.timeFormat);
         return `<button class="${classes.join(' ')}"
-            style="top:${top}%;height:${height}%;left:${left}%;width:calc(${width}% - 2px);--cat:${cat.color}"
+            style="top:${top}px;height:${height}px;left:${left}%;width:calc(${width}% - 2px);--cat:${cat.color}"
             data-routine="${esc(step.routineId)}" data-step="${esc(step.id)}" data-day="${esc(key)}"
-            title="${esc(step.title)} — ${esc(step.routineName)}\n${esc(DT.formatTime(step.time, State.settings().timeFormat))}${isToday ? '\nClick to tick off' : '\nClick to edit the routine'}">
-          <span class="tt-time">${esc(DT.formatTime(step.time, State.settings().timeFormat))}</span>
+            title="${esc(step.title)} — ${esc(step.routineName)}&#10;${esc(when)} · ${step.duration} min&#10;${isToday ? 'Click to tick off' : 'Click to open the routine'}">
+          <span class="tt-time">${esc(when)}</span>
           <span class="tt-title">${esc(step.title)}</span>
         </button>`;
       }).join('');
 
-      const nowLine = isToday && nowMinutes >= range.start && nowMinutes <= range.end
-        ? `<span class="tt-now" style="top:${((nowMinutes - range.start) / span) * 100}%"></span>`
-        : '';
+      const nowY = isToday ? scale.yOf(nowMinutes) : null;
+      const nowLine = nowY === null ? '' : `<span class="tt-now" style="top:${nowY}px"></span>`;
 
       return `<div class="tt-day${isToday ? ' today' : ''}">${blocks}${nowLine}</div>`;
     }).join('');
 
     host.innerHTML = `
-      <div class="tt-head"><div class="tt-corner"></div>${head}</div>
-      <div class="tt-body" style="height:${bodyHeight}px;--hour:${HOUR_PX}px">
-        <div class="tt-gutter">${hours.join('')}</div>
+      <div class="tt-head${tight ? ' slim' : ''}"><div class="tt-corner"></div>${head}</div>
+      <div class="tt-body" style="height:${Math.round(scale.height)}px">
+        ${lines.join('')}${gaps}
+        <div class="tt-gutter">${labels.join('')}</div>
         ${columns}
       </div>
-      <div class="tt-legend">
+      ${tight ? '' : `<div class="tt-legend">
         ${routines.filter(r => r.active).map(r =>
           `<span><i style="background:${State.categoryOf(r.category).color}"></i>${esc(r.name)}</span>`).join('')}
-      </div>`;
+      </div>`}`;
 
     host.querySelectorAll('.tt-block').forEach(block => {
       block.addEventListener('click', () => {
@@ -250,13 +364,27 @@
         else openEditor(State.Routines.byId(routine));
       });
     });
+
+    // The header, legend and margins can only be measured once they exist, so
+    // if the first pass overshoots by a few pixels, take those pixels back and
+    // draw once more. One correction, never a loop.
+    if (!fitting) {
+      const views = $('#views');
+      const overflow = views.scrollHeight - views.clientHeight;
+      if (overflow > 0 && pxPerMin > MIN_PX_PER_MIN) {
+        fitting = true;
+        fitAdjust += overflow;
+        renderWeek();
+        fitting = false;
+      }
+    }
   }
 
   function renderEmpty(host) {
     host.innerHTML = '';
     host.appendChild(el('div', { class: 'empty' }, [
       el('strong', { text: 'No routines yet' }),
-      el('div', { text: 'A routine is a set of timed steps that repeats — a morning ritual, a study block, an evening wind-down. Each step reminds you when its time comes, and the week fills in as a timetable.' }),
+      el('div', { text: 'A routine is any repeating part of your day — classes, study blocks, meals, chores, work, winding down. Give it timed steps and your week fills in as a timetable, with a reminder when each step is due.' }),
       el('div', { style: { marginTop: '12px', display: 'flex', gap: '6px', justifyContent: 'center' } }, [
         el('button', { class: 'primary-btn', text: 'Start from a template', onClick: openPresets }),
         el('button', { class: 'ghost-btn', text: 'Build my own', onClick: () => openEditor(null) })
@@ -408,31 +536,74 @@
 
   // ---------------------------------------------------------------- editor
 
+  /**
+   * Starting points for a routine.
+   *
+   * A routine is any repeating shape of a day — classes, study, chores, meals,
+   * work blocks, winding down — so the templates cover ordinary life rather
+   * than one hobby. Every one is meant to be edited, not followed literally.
+   */
   const PRESETS = [
     {
-      name: 'Morning routine', category: 'personal', days: [1, 2, 3, 4, 5],
+      name: 'Morning routine', category: 'personal', days: [0, 1, 2, 3, 4, 5, 6],
+      blurb: 'Getting the day started the same way each time',
       steps: [
         { title: 'Wake up', time: '07:00', duration: 10 },
-        { title: 'Stretch and hydrate', time: '07:10', duration: 20 },
+        { title: 'Freshen up', time: '07:10', duration: 20 },
         { title: 'Breakfast', time: '07:30', duration: 30 },
         { title: 'Plan the day', time: '08:00', duration: 15 }
       ]
     },
     {
-      name: 'Deep work block', category: 'work', days: [1, 2, 3, 4, 5],
+      name: 'Class day', category: 'study', days: [0, 1, 2, 3, 4],
+      blurb: 'Lectures with a revision slot after',
+      steps: [
+        { title: 'Leave for campus', time: '08:00', duration: 30 },
+        { title: 'First class', time: '09:00', duration: 90 },
+        { title: 'Second class', time: '11:00', duration: 90 },
+        { title: 'Lunch', time: '13:00', duration: 45 },
+        { title: 'Revise the morning', time: '16:00', duration: 60 }
+      ]
+    },
+    {
+      name: 'Study block', category: 'study', days: [0, 1, 2, 3, 4, 5, 6],
+      blurb: 'Focused sessions with real breaks between',
+      steps: [
+        { title: 'Review yesterday', time: '19:00', duration: 20 },
+        { title: 'Study session one', time: '19:30', duration: 50 },
+        { title: 'Break', time: '20:20', duration: 10 },
+        { title: 'Study session two', time: '20:30', duration: 50 },
+        { title: 'Note what to revisit', time: '21:20', duration: 15 }
+      ]
+    },
+    {
+      name: 'Work day', category: 'work', days: [0, 1, 2, 3, 4],
+      blurb: 'Deep work first, admin after',
       steps: [
         { title: 'Clear inbox', time: '09:00', duration: 30 },
         { title: 'Focus block one', time: '09:30', duration: 90 },
         { title: 'Break', time: '11:00', duration: 15 },
-        { title: 'Focus block two', time: '11:15', duration: 75 }
+        { title: 'Focus block two', time: '11:15', duration: 75 },
+        { title: 'Admin and replies', time: '16:00', duration: 45 }
+      ]
+    },
+    {
+      name: 'Home & chores', category: 'general', days: [0, 1, 2, 3, 4, 5, 6],
+      blurb: 'The small upkeep that piles up when skipped',
+      steps: [
+        { title: 'Tidy the desk', time: '17:30', duration: 15 },
+        { title: 'Dishes and kitchen', time: '20:30', duration: 20 },
+        { title: 'Lay out tomorrow', time: '21:45', duration: 10 }
       ]
     },
     {
       name: 'Evening wind-down', category: 'health', days: [0, 1, 2, 3, 4, 5, 6],
+      blurb: 'Closing the day on purpose instead of by accident',
       steps: [
         { title: 'Shut down work', time: '18:00', duration: 15 },
-        { title: 'Exercise', time: '18:30', duration: 45 },
-        { title: 'Screens off', time: '22:00', duration: 15 },
+        { title: 'Move — walk, stretch or gym', time: '18:30', duration: 45 },
+        { title: 'Dinner', time: '19:45', duration: 45 },
+        { title: 'Screens off', time: '22:00', duration: 10 },
         { title: 'Read', time: '22:15', duration: 30 }
       ]
     }
@@ -600,7 +771,7 @@
     const body = el('div');
     body.appendChild(el('p', {
       class: 'muted-note',
-      text: 'Start from a template — rename, retime or delete any step afterwards.'
+      text: 'A routine is any repeating shape of a day — classes, study, chores, meals, work, winding down. Start from one of these and change whatever does not fit.'
     }));
     for (const preset of PRESETS) {
       body.appendChild(el('button', {
@@ -612,7 +783,8 @@
         }
       }, [
         el('b', { text: preset.name }),
-        el('span', { text: preset.steps.map(s => s.time + ' ' + s.title).join(' · ') })
+        el('small', { text: preset.blurb }),
+        el('span', { text: preset.steps.map(x => x.time + ' ' + x.title).join(' · ') })
       ]));
     }
     UI.modal({
@@ -626,6 +798,9 @@
   }
 
   // -------------------------------------------------------------- routing
+
+  /** Forget the measured correction so the next draw re-fits from scratch. */
+  function resetFit() { fitAdjust = 0; }
 
   function setMode(next) {
     mode = next;
@@ -713,8 +888,9 @@
     });
 
     State.on('routines', () => { render(); if (State.isActiveTab('today')) renderToday(); });
-    State.on('settings', render);
-    State.on('tick:day', () => { render(); renderToday(); });
+    State.on('settings', () => { resetFit(); render(); });
+    State.on('tick:day', () => { resetFit(); render(); renderToday(); });
+    window.addEventListener('resize', UI.debounce(() => { resetFit(); render(); }, 180));
     State.on('tick:minute', () => {
       // The now-line, "in 12 min" and overdue styling all age by the minute.
       if (State.isActiveTab('routines')) render();

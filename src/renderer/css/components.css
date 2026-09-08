@@ -1156,14 +1156,12 @@ mark {
 .tt-day {
   position: relative;
   border-left: 1px solid var(--stroke);
-  /* One faint line per hour, drawn by the background so no extra DOM. */
-  background-image: linear-gradient(to bottom, var(--stroke) 1px, transparent 1px);
-  background-size: 100% var(--hour);
 }
 .tt-day.today { background-color: color-mix(in srgb, var(--accent) 7%, transparent); }
 
 .tt-block {
   position: absolute;
+  z-index: 2;
   display: flex; flex-direction: column; justify-content: flex-start;
   overflow: hidden;
   padding: 2px 4px;
@@ -1294,3 +1292,45 @@ body[data-notefocus="true"] #noteFocus { color: var(--accent); background: var(-
 .tt-block.tiny { padding: 1px 4px; justify-content: center; }
 .tt-block.tiny .tt-time { display: none; }
 .tt-block.tiny .tt-title { font-size: 9px; }
+
+/* --------------------------------------------- timetable: fit to one page */
+/* Hour lines span the whole grid so they stay aligned across the collapsed
+   stretches, where a per-column background gradient no longer could. */
+.tt-line {
+  position: absolute; left: 38px; right: 0;
+  height: 1px; background: var(--stroke);
+  pointer-events: none;
+}
+
+/* A collapsed run of empty hours: visible as a deliberate fold, not a gap in
+   the data. */
+.tt-gap {
+  position: absolute; left: 0; right: 0;
+  display: flex; align-items: center; justify-content: center;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    -45deg,
+    var(--surface-1) 0 6px,
+    transparent 6px 12px);
+  border-top: 1px dashed var(--stroke);
+  border-bottom: 1px dashed var(--stroke);
+}
+.tt-gap i {
+  font-style: normal; font-size: 8.5px; letter-spacing: .04em;
+  color: var(--ink-4); text-transform: uppercase;
+  background: var(--surface-0); padding: 0 6px; border-radius: 99px;
+}
+
+/* At a tight scale the blocks need less padding and a smaller hit of type. */
+.tt-block { padding: 1px 4px; }
+.tt-title { font-size: 9.5px; }
+.tt-time { font-size: 8px; }
+
+.preset-card small {
+  display: block; font-size: 11px; color: var(--ink-2);
+  margin: 2px 0 4px; font-weight: 400;
+}
+
+/* On a short window the day header loses its date line to buy back rows. */
+.tt-head.slim .tt-dayhead { padding: 1px 0; }
+.tt-head.slim .tt-dayhead span { display: none; }

@@ -64,19 +64,27 @@ tasks that roll forward to their next occurrence when completed, filters
 (Today / Upcoming / All / Done), sorting, a completion ring and a daily streak.
 
 **Routines — the centre of the app.** A routine is a named set of timed steps that
-repeats on the weekdays you choose: a morning ritual, a study block, an evening
-wind-down. The app opens here, because creating a routine is the easy part and
+repeats on the weekdays you choose — classes, study blocks, meals, chores, work,
+winding down. Not a workout planner — anything you do on a schedule belongs here.
+The app opens on this tab, because creating a routine is the easy part and
 following one is the point.
 
 *Three ways to look at the same week:*
 
 - **Week** — your routines drawn as a timetable, the way a class schedule is drawn:
   seven day columns, hour rows, colour-coded blocks sized by how long each step
-  takes. Overlapping steps sit side by side, today's column is tinted, a red line
-  tracks the current time, and clicking a block on today ticks that step off.
+  takes. **The whole week fits on one screen**: empty stretches — the hours between
+  lunch and the evening, say — collapse into a marked *4h free* fold, and the grid
+  scales itself to the window rather than making you scroll past dead time.
+  Overlapping steps sit side by side, today's column is tinted, a red line tracks
+  the current time, and clicking a block on today ticks that step off.
 - **Today** — the day as a checklist grouped by routine, each with its own progress
   bar and streak, plus a seven-day consistency strip underneath.
 - **Manage** — create, edit, pause or delete. Pausing keeps the history.
+
+Six templates cover ordinary life — morning routine, class day, study block, work
+day, home & chores, evening wind-down — and every one is meant to be edited rather
+than followed literally.
 
 *What keeps you honest:*
 

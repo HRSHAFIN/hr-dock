@@ -336,7 +336,7 @@
 
   /**
    * A routine is a named set of timed steps that repeats on chosen weekdays —
-   * a morning ritual, a gym split, a shutdown checklist. Steps are ticked off
+   * classes, study blocks, chores, meals, work, winding down. Steps are ticked off
    * per day, so yesterday's completions never hide today's.
    */
   function normaliseRoutine(input) {
