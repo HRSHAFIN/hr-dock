@@ -78,7 +78,10 @@ good reading is kept and shown as stale rather than blanking when offline.
 shorthand people already type by reflex, so the toolbar is optional: `# ` for a
 heading, `- ` for a bullet, `1. ` for a numbered list, `[] ` for a checkbox, `> ` for a
 quote. Enter inside a checklist continues it; Enter on an empty item leaves it. Notes
-autosave as you type, take their title from the first line if you don't give them one,
+autosave as you type — the footer says so, and shows "Saving…" then "Saved 14:22" as it
+happens — with an explicit **Save** button (`Ctrl`+`S`) and a **Done** button that saves
+and closes, because an editor with no visible save control is one you cannot trust.
+Notes take their title from the first line if you don't give them one,
 and show checklist progress on the card. Search highlights matches, cards can be
 pinned, duplicated, coloured and categorised, and a deleted note can be brought back
 from the undo toast. `Ctrl`+`K` adds a link; pasted text arrives as plain text (a

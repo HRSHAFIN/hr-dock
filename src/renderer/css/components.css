@@ -544,8 +544,9 @@ html[data-theme="light"] .note-editor { background: #f9fafd; }
 .rte a { color: var(--accent); }
 .rte h1, .rte h2, .rte h3 { font-size: 15px; margin: 8px 0 4px; text-transform: none; letter-spacing: 0; color: var(--ink); }
 .note-editor-foot {
-  padding: 6px 14px 10px; font-size: 10.5px; color: var(--ink-4);
-  display: flex; justify-content: flex-end;
+  padding: 8px 12px 10px; font-size: 10.5px; color: var(--ink-4);
+  display: flex; align-items: center; gap: 8px;
+  border-top: 1px solid var(--stroke);
 }
 
 /* -------------------------------------------------------------- insights */
@@ -989,8 +990,15 @@ mark {
   padding: 0 1px;
 }
 
-.note-editor-foot { justify-content: space-between; }
-#noteCount { color: var(--ink-4); }
+#noteCount { color: var(--ink-4); white-space: nowrap; }
+#noteSaved { color: var(--ink-4); white-space: nowrap; margin-right: auto; }
+#noteSaved::before {
+  content: "·"; margin: 0 6px 0 0; color: var(--ink-4);
+}
+#noteSaved:empty::before { content: none; }
+#noteSaved[data-state="saving"] { color: var(--prio-high); }
+#noteSaved[data-state="saved"] { color: var(--prio-low); }
+#noteSave, #noteDone { flex: 0 0 auto; }
 
 /* markdown-shorthand output inside the editor */
 .rte h1 { font-size: 17px; font-weight: 600; margin: 10px 0 4px; }

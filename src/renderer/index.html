@@ -166,7 +166,7 @@
           <input type="text" id="noteTitle" placeholder="Title" autocomplete="off">
           <button class="icon-btn sm" id="notePin" title="Pin note"></button>
           <button class="icon-btn sm danger" id="noteDelete" title="Delete note"></button>
-          <button class="icon-btn sm" id="noteClose" title="Close editor"></button>
+          <button class="icon-btn sm" id="noteClose" title="Save and close"></button>
         </div>
         <div class="rte-toolbar" id="rteToolbar">
           <button data-cmd="bold" title="Bold"><b>B</b></button>
@@ -187,7 +187,12 @@
         </div>
         <div class="rte" id="noteBody" contenteditable="true" spellcheck="true"
              data-placeholder="Start writing…  Type # for a heading, - for a list, [] for a checkbox"></div>
-        <div class="note-editor-foot"><span id="noteCount"></span><span id="noteSaved">Saved</span></div>
+        <div class="note-editor-foot">
+          <span id="noteCount"></span>
+          <span id="noteSaved"></span>
+          <button class="ghost-btn" id="noteSave" title="Save now  ·  Ctrl+S">Save</button>
+          <button class="primary-btn" id="noteDone">Done</button>
+        </div>
       </div>
     </section>
 

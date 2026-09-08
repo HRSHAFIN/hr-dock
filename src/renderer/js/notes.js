@@ -217,7 +217,8 @@
     editor.hidden = false;
     editor.dataset.color = note ? note.color : 'transparent';
     editor.dataset.pinned = String(note ? !!note.pinned : false);
-    $('#noteSaved').textContent = note ? `Edited ${DT.relativeDay(DT.key(new Date(note.updatedAt)))}` : 'New note';
+    if (note) setStatus('idle', `Edited ${DT.relativeDay(DT.key(new Date(note.updatedAt)))}`);
+    else setStatus('new');
     updateCount();
 
     setTimeout(() => (note ? bodyEl : title).focus(), 50);
@@ -248,6 +249,22 @@
     btn.innerHTML = Icons.icon('pinSm', 13);
     btn.setAttribute('aria-pressed', String(!!pinned));
     btn.title = pinned ? 'Unpin note' : 'Pin note';
+  }
+
+  /**
+   * Say what the editor is doing with the writing.
+   * Autosave is invisible by nature, and an editor that never shows a Save
+   * control reads as one that might lose your work — so the status line is
+   * explicit, and the Save button exists even though it is rarely needed.
+   */
+  function setStatus(state, when) {
+    const node = $('#noteSaved');
+    if (!node) return;
+    node.dataset.state = state;
+    if (state === 'saving') node.textContent = 'Saving…';
+    else if (state === 'saved') node.textContent = `Saved ${when || new Date().toLocaleTimeString()}`;
+    else if (state === 'new') node.textContent = 'Saves as you type';
+    else node.textContent = when || '';
   }
 
   function updateCount() {
@@ -289,8 +306,24 @@
       category: $('#noteCategory').value
     });
     editingId = record.id;
-    $('#noteSaved').textContent = `Saved ${new Date(record.updatedAt).toLocaleTimeString()}`;
+    setStatus('saved', new Date(record.updatedAt).toLocaleTimeString());
     updateCount();
+    return record;
+  }
+
+  /**
+   * Commit right now, on purpose.
+   * Autosave already does this, but pressing Save should visibly confirm the
+   * writing is safe rather than leaving the user to trust a debounce.
+   */
+  function saveNow(silent) {
+    save.cancel();
+    const record = commit();
+    if (!record) {
+      if (!silent) UI.toast({ title: 'Nothing to save yet', message: 'Write something first.', timeout: 2000 });
+      return null;
+    }
+    if (!silent) UI.toast({ kind: 'success', title: 'Note saved', message: record.title, timeout: 1600 });
     return record;
   }
 
@@ -493,6 +526,9 @@
 
     $('#noteAdd').addEventListener('click', () => open(null));
     $('#noteClose').addEventListener('click', close);
+
+    $('#noteSave').addEventListener('click', () => saveNow());
+    $('#noteDone').addEventListener('click', () => { saveNow(true); close(); });
     $('#noteDelete').addEventListener('click', () => {
       if (!editingId) { close(); return; }
       removeNote(editingId);
@@ -506,11 +542,11 @@
       save();
     });
 
-    $('#noteTitle').addEventListener('input', save);
+    $('#noteTitle').addEventListener('input', () => { setStatus('saving'); save(); });
     $('#noteCategory').addEventListener('change', save);
 
     const body = $('#noteBody');
-    body.addEventListener('input', () => { save(); updateCount(); });
+    body.addEventListener('input', () => { setStatus('saving'); save(); updateCount(); });
 
     // Paste as plain text, but keep a pasted URL as a working link.
     body.addEventListener('paste', e => {
@@ -527,7 +563,7 @@
 
     body.addEventListener('keydown', e => {
       if (e.key === 'Escape') { e.preventDefault(); close(); return; }
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { e.preventDefault(); save.flush(); return; }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { e.preventDefault(); saveNow(); return; }
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); insertLink(); return; }
       if (handleChecklistEnter(e)) return;
       handleShorthand(e);
