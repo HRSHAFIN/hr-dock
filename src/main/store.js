@@ -27,7 +27,8 @@ const DEFAULTS = {
     autostart: false,
     startMinimised: false,
     surface: 'auto',               // auto | acrylic | glass  (window backdrop)
-    lastTab: 'today',
+    lastTab: 'routines',
+    routineMode: 'week',
     onboarded: false,
     weather: {
       unit: 'c',                   // c | f
@@ -42,7 +43,8 @@ const DEFAULTS = {
       sound: true,
       silent: false,
       defaultLeadMinutes: 10,
-      snoozeMinutes: 10
+      snoozeMinutes: 10,
+      routineNudgeMinutes: 10
     },
     system: { enabled: true },
     modules: { weather: true, schedule: true, todos: true, notes: true, system: true }

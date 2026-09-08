@@ -217,6 +217,43 @@ suite('reminder engine', t => {
   }
 
   {
+    // Accountability: a step still untouched a while after its time gets one
+    // follow-up, and only one.
+    const at = offset(-11);
+    const weekday = DT.fromKey(at.date).getDay();
+    const { engine, fired } = engineWith({
+      routines: [{
+        id: 'rn', name: 'Morning', active: true, remind: 0, days: [weekday],
+        steps: [{ id: 'sn', title: 'Stretch', time: at.time }], completed: {}
+      }]
+    });
+    engine.tick();
+    const nudges = fired.filter(f => f.kind === 'routine-nudge');
+    t.check('an overdue routine step raises a nudge', nudges.length === 1,
+      fired.map(f => f.kind).join(','));
+    t.check('the nudge says what is still open',
+      nudges.length === 1 && nudges[0].title.indexOf('Stretch') > -1, nudges[0] && nudges[0].title);
+    engine.tick();
+    t.check('the nudge fires only once',
+      fired.filter(f => f.kind === 'routine-nudge').length === 1);
+  }
+
+  {
+    const at = offset(-11);
+    const weekday = DT.fromKey(at.date).getDay();
+    const { engine, fired } = engineWith({
+      routines: [{
+        id: 'rd', name: 'Morning', active: true, remind: 0, days: [weekday],
+        steps: [{ id: 'sd', title: 'Done already', time: at.time }],
+        completed: { [at.date]: ['sd'] }
+      }]
+    });
+    engine.tick();
+    t.check('a ticked-off step is never nudged',
+      fired.filter(f => f.kind === 'routine-nudge').length === 0);
+  }
+
+  {
     const at = offset(1);
     const weekday = DT.fromKey(at.date).getDay();
     const otherDay = (weekday + 3) % 7;

@@ -25,6 +25,16 @@ const shift = n => {
 };
 
 const today = key(new Date());
+
+// A believable run of completed days, in LOCAL dates — an ISO slice would be
+// UTC and would shift every key by a day in eastern time zones.
+function routineHistory() {
+  const out = {};
+  for (let i = 1; i <= 12; i++) {
+    out[shift(-i)] = i % 5 === 0 ? ['a1', 'a2'] : ['a1', 'a2', 'a3', 'a4'];
+  }
+  return out;
+}
 const completions = {};
 [3, 5, 2, 6, 4, 0, 3, 5, 1, 4, 2, 3].forEach((count, i) => {
   if (count) completions[shift(-i)] = count;
@@ -66,6 +76,14 @@ const data = {
     { id: 'ev6', title: 'Dentist', date: shift(5), time: '11:15', endTime: '12:00', category: 'health', priority: 'medium', location: 'Clinic', notes: '', status: 'planned', remind: 60, recurrence: 'none', interval: 1, exceptions: [], completedOn: [], createdAt: Date.now() },
     { id: 'ev7', title: 'Sprint planning', date: shift(4), time: '10:00', endTime: '11:30', category: 'meeting', priority: 'high', location: '', notes: '', status: 'planned', remind: 10, recurrence: 'none', interval: 1, exceptions: [], completedOn: [], createdAt: Date.now() },
     { id: 'ev8', title: 'Coffee with Marcus', date: shift(-1), time: '16:00', endTime: '', category: 'personal', priority: 'low', location: 'Kaffeine', notes: '', status: 'done', remind: null, recurrence: 'none', interval: 1, exceptions: [], completedOn: [shift(-1)], createdAt: Date.now() }
+  ],
+  routines: [
+    { id: 'r1', name: 'Morning routine', category: 'personal', days: [0,1,2,3,4,5,6], active: true, remind: 5, completed: routineHistory('r1'), createdAt: Date.now(), updatedAt: Date.now(),
+      steps: [ { id: 'a1', title: 'Wake up', time: '07:00', duration: 15 }, { id: 'a2', title: 'Stretch and hydrate', time: '07:15', duration: 20 }, { id: 'a3', title: 'Breakfast', time: '07:40', duration: 30 }, { id: 'a4', title: 'Plan the day', time: '08:15', duration: 20 } ] },
+    { id: 'r2', name: 'Deep work', category: 'work', days: [1,2,3,4,5], active: true, remind: 10, completed: {}, createdAt: Date.now(), updatedAt: Date.now(),
+      steps: [ { id: 'b1', title: 'Clear inbox', time: '09:00', duration: 30 }, { id: 'b2', title: 'Focus block one', time: '09:30', duration: 90 }, { id: 'b3', title: 'Break', time: '11:00', duration: 15 }, { id: 'b4', title: 'Focus block two', time: '11:15', duration: 75 } ] },
+    { id: 'r3', name: 'Evening wind-down', category: 'health', days: [0,1,2,3,4,5,6], active: true, remind: 10, completed: {}, createdAt: Date.now(), updatedAt: Date.now(),
+      steps: [ { id: 'c1', title: 'Shut down work', time: '18:00', duration: 20 }, { id: 'c2', title: 'Exercise', time: '18:30', duration: 45 }, { id: 'c3', title: 'Read', time: '21:30', duration: 30 } ] }
   ],
   todos: [
     { id: 'td1', title: 'Ship the release notes', notes: 'Include the migration steps.', done: false, priority: 'critical', category: 'work', due: today, dueTime: '16:00', remind: 30, recurrence: 'none', interval: 1, order: 0, createdAt: Date.now() - 86400000, completedAt: null },

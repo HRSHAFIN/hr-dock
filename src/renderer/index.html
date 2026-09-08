@@ -65,10 +65,10 @@
 
   <!-- --------------------------------------------------------------- tabs -->
   <nav class="tabs" id="tabs" role="tablist">
+    <button class="tab" data-tab="routines" role="tab" title="Routines"><span class="tab-icon"></span><span class="tab-label">Routines</span></button>
     <button class="tab" data-tab="today"    role="tab" title="Today"><span class="tab-icon"></span><span class="tab-label">Today</span></button>
     <button class="tab" data-tab="calendar" role="tab" title="Calendar"><span class="tab-icon"></span><span class="tab-label">Calendar</span></button>
     <button class="tab" data-tab="tasks"    role="tab" title="Tasks"><span class="tab-icon"></span><span class="tab-label">Tasks</span></button>
-    <button class="tab" data-tab="routines" role="tab" title="Routines"><span class="tab-icon"></span><span class="tab-label">Routines</span></button>
     <button class="tab" data-tab="notes"    role="tab" title="Notes"><span class="tab-icon"></span><span class="tab-label">Notes</span></button>
     <button class="tab" data-tab="stats"    role="tab" title="Insights"><span class="tab-icon"></span><span class="tab-label">Insights</span></button>
     <button class="tab" data-tab="system"   role="tab" title="System"><span class="tab-icon"></span><span class="tab-label">System</span></button>
@@ -81,9 +81,9 @@
 
     <!-- TODAY -->
     <section class="view" data-view="today">
-      <div class="card weather-card" id="weatherCard"></div>
-
       <div class="card" id="routineToday" hidden></div>
+
+      <div class="card weather-card" id="weatherCard"></div>
 
       <div class="section-head">
         <h2>Today's schedule</h2>
@@ -146,10 +146,20 @@
 
     <!-- ROUTINES -->
     <section class="view" data-view="routines">
-      <div class="notes-head">
-        <button class="primary-btn" id="routineAdd">+ New routine</button>
-        <button class="ghost-btn" id="routineTemplates">Use a template</button>
+      <div class="momentum" id="routineMomentum"></div>
+
+      <div class="routine-bar">
+        <div class="seg" id="routineModeSeg">
+          <button data-mode="week" class="active">Week</button>
+          <button data-mode="today">Today</button>
+          <button data-mode="manage">Manage</button>
+        </div>
+        <button class="ghost-btn" id="routineTemplates">Templates</button>
+        <button class="primary-btn" id="routineAdd">+ New</button>
       </div>
+
+      <div class="timetable" id="routineWeek"></div>
+      <div class="routine-day" id="routineTodayPane"></div>
       <div class="routine-list" id="routineList"></div>
     </section>
 
@@ -161,45 +171,13 @@
       </div>
       <div class="filter-row" id="noteCats"></div>
       <div class="notes-grid" id="notesGrid"></div>
-      <div class="note-editor" id="noteEditor" hidden>
-        <div class="note-editor-head">
-          <input type="text" id="noteTitle" placeholder="Title" autocomplete="off">
-          <button class="icon-btn sm" id="notePin" title="Pin note"></button>
-          <button class="icon-btn sm danger" id="noteDelete" title="Delete note"></button>
-          <button class="icon-btn sm" id="noteClose" title="Save and close"></button>
-        </div>
-        <div class="rte-toolbar" id="rteToolbar">
-          <button data-cmd="bold" title="Bold  ·  Ctrl+B" class="rte-letter"><b>B</b></button>
-          <button data-cmd="italic" title="Italic  ·  Ctrl+I" class="rte-letter"><i>I</i></button>
-          <button data-cmd="underline" title="Underline  ·  Ctrl+U" class="rte-letter"><u>U</u></button>
-          <button data-cmd="strikeThrough" title="Strikethrough" class="rte-letter"><s>S</s></button>
-          <span class="rte-sep"></span>
-          <button data-cmd="insertUnorderedList" data-icon="listBullet" title="Bulleted list  ·  type &quot;- &quot;"></button>
-          <button data-cmd="insertOrderedList" data-icon="listNumber" title="Numbered list  ·  type &quot;1. &quot;"></button>
-          <button data-cmd="checklist" data-icon="checkSquare" title="Checklist  ·  type &quot;[] &quot;"></button>
-          <span class="rte-sep"></span>
-          <button data-cmd="link" data-icon="link" title="Add link  ·  Ctrl+K"></button>
-          <button data-cmd="hiliteColor" data-icon="highlight" title="Highlight"></button>
-          <button data-cmd="removeFormat" data-icon="clearFormat" title="Clear formatting"></button>
-        </div>
-        <div class="note-props">
-          <span class="note-colors" id="noteColors"></span>
-          <select id="noteCategory" class="mini-select"></select>
-        </div>
-        <div class="rte" id="noteBody" contenteditable="true" spellcheck="true"
-             data-placeholder="Start writing…  Type # for a heading, - for a list, [] for a checkbox"></div>
-        <div class="note-editor-foot">
-          <span id="noteCount"></span>
-          <span id="noteSaved"></span>
-          <button class="ghost-btn" id="noteSave" title="Save now  ·  Ctrl+S">Save</button>
-          <button class="primary-btn" id="noteDone">Done</button>
-        </div>
-      </div>
     </section>
 
     <!-- INSIGHTS -->
     <section class="view" data-view="stats">
       <div class="stat-grid" id="statGrid"></div>
+      <div class="card" id="routineInsight"></div>
+
       <div class="card">
         <div class="card-head"><h3>Last 7 days</h3><span id="weekScore" class="pill"></span></div>
         <div class="bars" id="weekBars"></div>
@@ -228,6 +206,42 @@
       <div class="settings" id="settings"></div>
     </section>
   </main>
+
+  <div class="note-editor" id="noteEditor" hidden>
+    <div class="note-editor-head">
+      <input type="text" id="noteTitle" placeholder="Title" autocomplete="off">
+      <button class="icon-btn sm" id="noteFocus" title="Focus mode — hide everything else"></button>
+    <button class="icon-btn sm" id="notePin" title="Pin note"></button>
+      <button class="icon-btn sm danger" id="noteDelete" title="Delete note"></button>
+      <button class="icon-btn sm" id="noteClose" title="Save and close"></button>
+    </div>
+    <div class="rte-toolbar" id="rteToolbar">
+      <button data-cmd="bold" title="Bold  ·  Ctrl+B" class="rte-letter"><b>B</b></button>
+      <button data-cmd="italic" title="Italic  ·  Ctrl+I" class="rte-letter"><i>I</i></button>
+      <button data-cmd="underline" title="Underline  ·  Ctrl+U" class="rte-letter"><u>U</u></button>
+      <button data-cmd="strikeThrough" title="Strikethrough" class="rte-letter"><s>S</s></button>
+      <span class="rte-sep"></span>
+      <button data-cmd="insertUnorderedList" data-icon="listBullet" title="Bulleted list  ·  type &quot;- &quot;"></button>
+      <button data-cmd="insertOrderedList" data-icon="listNumber" title="Numbered list  ·  type &quot;1. &quot;"></button>
+      <button data-cmd="checklist" data-icon="checkSquare" title="Checklist  ·  type &quot;[] &quot;"></button>
+      <span class="rte-sep"></span>
+      <button data-cmd="link" data-icon="link" title="Add link  ·  Ctrl+K"></button>
+      <button data-cmd="hiliteColor" data-icon="highlight" title="Highlight"></button>
+      <button data-cmd="removeFormat" data-icon="clearFormat" title="Clear formatting"></button>
+    </div>
+    <div class="note-props">
+      <span class="note-colors" id="noteColors"></span>
+      <select id="noteCategory" class="mini-select"></select>
+    </div>
+    <div class="rte" id="noteBody" contenteditable="true" spellcheck="true"
+         data-placeholder="Start writing…  Type # for a heading, - for a list, [] for a checkbox"></div>
+    <div class="note-editor-foot">
+      <span id="noteCount"></span>
+      <span id="noteSaved"></span>
+      <button class="ghost-btn" id="noteSave" title="Save now  ·  Ctrl+S">Save</button>
+      <button class="primary-btn" id="noteDone">Done</button>
+    </div>
+  </div>
 
   <!-- resize handles (frameless windows need their own) -->
   <div class="rz rz-n"  data-edge="n"></div>

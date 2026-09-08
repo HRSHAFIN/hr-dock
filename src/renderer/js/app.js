@@ -7,7 +7,7 @@
   const { $, $$, el, esc } = UI;
 
   const TAB_ICONS = {
-    today: 'home', calendar: 'calendar', tasks: 'tasks', routines: 'routine',
+    routines: 'routine', today: 'home', calendar: 'calendar', tasks: 'tasks',
     notes: 'note', stats: 'chart', system: 'cpu', settings: 'settings'
   };
   const TAB_ORDER = Object.keys(TAB_ICONS);
@@ -203,6 +203,14 @@
   // ------------------------------------------------------- help & welcome
 
   const HELP = [
+    ['Routines — the point of the app', [
+      ['Week', 'Your whole week as a timetable'],
+      ['Today', 'The day as a checklist, grouped by routine'],
+      ['Manage', 'Create, edit, pause or delete routines'],
+      ['Click a block', "On today's column it ticks the step off; elsewhere it opens the routine"],
+      ['Streak', 'Consecutive days you finished every step — days a routine does not run are skipped, not counted against you'],
+      ['Nudge', 'A step still untouched 10 minutes after its time gets one follow-up reminder']
+    ]],
     ['Getting around', [
       ['Move the widget', 'Drag the top strip or the clock'],
       ['Resize', 'Drag any edge or corner'],
@@ -215,6 +223,7 @@
       ['Ctrl+N', 'New task'],
       ['Ctrl+E', 'New event'],
       ['Ctrl+F', 'Search notes'],
+      ['Ctrl+Shift+F', 'Focus mode while writing a note'],
       ['Ctrl+Alt+C', 'Compact mode'],
       ['Arrows / T', 'Move the calendar, jump to today'],
       ['Shift+wheel', 'Page months on the calendar']

@@ -502,16 +502,15 @@ input[type="range"]::-webkit-slider-thumb:active { transform: scale(1.15); }
 .note-pin svg { width: 12px; height: 12px; }
 
 .note-editor {
-  position: absolute; inset: 0; z-index: 6;
+  /* The editor covers the entire frame, not just the view area: a note is
+     long-form writing and the widget's 40px of chrome is not worth keeping
+     on screen while you write. */
+  position: absolute; inset: 0; z-index: 12;
   display: flex; flex-direction: column;
   background: var(--surface-0);
-  /* It sits inside the view padding, so give it a real edge — otherwise the
-     grid showing through the gutters reads as a rendering glitch. */
-  border: 1px solid var(--stroke-strong);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow);
-  overflow: hidden;
+  border-radius: var(--radius-xl);
   animation: fade-up var(--base) both;
+  overflow: hidden;
 }
 html[data-theme="dark"] .note-editor { background: #12151e; }
 html[data-theme="light"] .note-editor { background: #f9fafd; }
@@ -537,9 +536,13 @@ html[data-theme="light"] .note-editor { background: #f9fafd; }
 .note-colors i.active { border-color: var(--ink); }
 .rte {
   flex: 1; min-height: 0; overflow-y: auto;
-  padding: 12px 16px; font-size: 13px; line-height: 1.6;
+  /* Comfortable long-form measure: bigger type, generous leading, and a line
+     length that stops growing once it is pleasant to read. */
+  padding: 20px 22px 40px;
+  font-size: 14.5px; line-height: 1.72;
   outline: none;
 }
+.rte > * { max-width: 68ch; }
 .rte:empty::before { content: attr(data-placeholder); color: var(--ink-4); }
 .rte ul, .rte ol { margin: 6px 0; padding-left: 20px; }
 .rte a { color: var(--accent); }
@@ -1058,3 +1061,236 @@ mark {
   border-bottom: 1px solid var(--stroke);
 }
 .note-props .note-colors { margin: 0; }
+
+/* ============================================================== ROUTINES ==
+   The routine tab is the centre of the app: a momentum strip that says where
+   today stands, then the week as a timetable you can read and tick off. */
+
+.routine-bar {
+  display: flex; align-items: center; gap: 6px;
+  margin: 10px 0;
+}
+.routine-bar .seg { margin-right: auto; }
+
+/* mode panes ------------------------------------------------------------- */
+.view[data-view="routines"] #routineWeek,
+.view[data-view="routines"] #routineTodayPane,
+.view[data-view="routines"] #routineList { display: none; }
+.view[data-view="routines"][data-mode="week"] #routineWeek { display: block; }
+.view[data-view="routines"][data-mode="today"] #routineTodayPane { display: block; }
+.view[data-view="routines"][data-mode="manage"] #routineList { display: flex; }
+
+/* momentum strip --------------------------------------------------------- */
+.momentum {
+  display: flex; align-items: center; gap: 13px;
+  padding: 13px 14px;
+  margin-top: 6px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--accent-line);
+  background:
+    radial-gradient(120% 160% at 0% 0%, var(--accent-soft), transparent 62%),
+    var(--surface-1);
+}
+.mo-ring { position: relative; width: 54px; height: 54px; flex: 0 0 auto; }
+.mo-ring svg { transform: rotate(-90deg); }
+.mo-ring circle { fill: none; stroke-width: 5; stroke-linecap: round; }
+.mo-ring .bg { stroke: var(--surface-3); }
+.mo-ring .fg { stroke: var(--accent); transition: stroke-dashoffset var(--spring); }
+.mo-ring span {
+  position: absolute; inset: 0; display: grid; place-items: center;
+  font-size: 12.5px; font-weight: 700; font-variant-numeric: tabular-nums;
+}
+.mo-copy { flex: 1; min-width: 0; }
+.mo-copy b { display: block; font-size: 13px; font-weight: 600; }
+.mo-copy p { font-size: 11.5px; color: var(--ink-2); margin-top: 3px; line-height: 1.45; }
+.mo-stats { display: flex; flex-direction: column; gap: 5px; flex: 0 0 auto; text-align: right; }
+.mo-stat {
+  display: inline-flex; align-items: center; justify-content: flex-end; gap: 4px;
+  font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums;
+  color: var(--ink-2);
+}
+.mo-stat.hot { color: var(--prio-high); }
+.mo-stat small {
+  font-size: 9px; font-weight: 500; color: var(--ink-4);
+  text-transform: uppercase; letter-spacing: .05em; margin-left: 2px;
+}
+
+/* the timetable ---------------------------------------------------------- */
+.timetable { margin-top: 4px; }
+
+.tt-head {
+  display: grid;
+  grid-template-columns: 38px repeat(7, minmax(0, 1fr));
+  position: sticky; top: 0; z-index: 2;
+  background: var(--surface-0);
+  backdrop-filter: blur(8px);
+  padding-bottom: 4px;
+}
+.tt-dayhead {
+  text-align: center; padding: 3px 0;
+  border-radius: var(--radius-sm);
+}
+.tt-dayhead b {
+  display: block; font-size: 9.5px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: .05em; color: var(--ink-4);
+}
+.tt-dayhead span { font-size: 12px; font-variant-numeric: tabular-nums; color: var(--ink-2); }
+.tt-dayhead.today { background: var(--accent-soft); }
+.tt-dayhead.today b, .tt-dayhead.today span { color: var(--accent); font-weight: 700; }
+
+.tt-body {
+  display: grid;
+  grid-template-columns: 38px repeat(7, minmax(0, 1fr));
+  position: relative;
+  border-top: 1px solid var(--stroke);
+  /* The first hour label is centred on the top edge, so give it room to sit
+     rather than being clipped under the sticky day header. */
+  margin-top: 7px;
+}
+.tt-gutter { position: relative; }
+.tt-hour {
+  position: absolute; right: 5px; transform: translateY(-50%);
+  font-size: 9px; color: var(--ink-4);
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.tt-day {
+  position: relative;
+  border-left: 1px solid var(--stroke);
+  /* One faint line per hour, drawn by the background so no extra DOM. */
+  background-image: linear-gradient(to bottom, var(--stroke) 1px, transparent 1px);
+  background-size: 100% var(--hour);
+}
+.tt-day.today { background-color: color-mix(in srgb, var(--accent) 7%, transparent); }
+
+.tt-block {
+  position: absolute;
+  display: flex; flex-direction: column; justify-content: flex-start;
+  overflow: hidden;
+  padding: 2px 4px;
+  border-radius: 5px;
+  border-left: 2.5px solid var(--cat, var(--accent));
+  background: color-mix(in srgb, var(--cat, var(--accent)) 22%, transparent);
+  color: var(--ink);
+  text-align: left;
+  transition: filter var(--fast), transform var(--fast);
+}
+.tt-block:hover { filter: brightness(1.25); transform: scale(1.02); z-index: 3; }
+.tt-time {
+  font-size: 8.5px; font-weight: 600; color: var(--ink-2);
+  font-variant-numeric: tabular-nums; line-height: 1.2;
+}
+.tt-title {
+  font-size: 10px; line-height: 1.2;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.tt-block.done { opacity: .42; }
+.tt-block.done .tt-title { text-decoration: line-through; }
+.tt-block.past { opacity: .5; }
+.tt-block.late {
+  border-left-color: var(--prio-critical);
+  background: color-mix(in srgb, var(--prio-critical) 20%, transparent);
+}
+.tt-block.live {
+  outline: 1.5px solid var(--accent);
+  animation: pulse-ring 2.2s ease-out infinite;
+}
+.tt-now {
+  position: absolute; left: 0; right: 0; height: 1.5px;
+  background: var(--prio-critical); z-index: 4; pointer-events: none;
+}
+.tt-now::before {
+  content: ""; position: absolute; left: -3px; top: -2.5px;
+  width: 6px; height: 6px; border-radius: 50%; background: var(--prio-critical);
+}
+
+.tt-legend {
+  display: flex; flex-wrap: wrap; gap: 4px 12px;
+  margin-top: 10px; font-size: 10.5px; color: var(--ink-3);
+}
+.tt-legend span { display: inline-flex; align-items: center; gap: 5px; }
+.tt-legend i { width: 8px; height: 8px; border-radius: 3px; }
+
+/* today pane ------------------------------------------------------------- */
+.routine-day { display: flex; flex-direction: column; gap: 8px; }
+.day-group {
+  padding: 11px 12px;
+  border-radius: var(--radius-lg);
+  background: var(--surface-1);
+  border: 1px solid var(--stroke);
+}
+.dg-head { display: flex; align-items: center; gap: 7px; margin-bottom: 8px; }
+.dg-head b { font-size: 12.5px; }
+.dg-count { margin-left: auto; font-size: 11px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.dg-streak {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-size: 10.5px; font-weight: 700; color: var(--prio-high);
+  padding: 1px 6px; border-radius: 99px;
+  background: color-mix(in srgb, var(--prio-high) 16%, transparent);
+}
+.day-group .mini-bar { margin-bottom: 8px; }
+
+/* seven-day consistency strip -------------------------------------------- */
+.consistency .week-dots { display: flex; gap: 6px; }
+.week-dots .wd { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.week-dots .wd i {
+  display: block; width: 100%; height: 26px;
+  border-radius: var(--radius-sm);
+  background:
+    linear-gradient(to top, var(--accent) var(--fill), var(--surface-3) var(--fill));
+}
+.week-dots .wd.full i { background: var(--prio-low); }
+.week-dots .wd.miss i { background: color-mix(in srgb, var(--prio-critical) 30%, var(--surface-3)); }
+.week-dots .wd.off i { background: var(--surface-3); opacity: .4; }
+.week-dots .wd small { font-size: 9px; color: var(--ink-4); }
+
+/* step editor ------------------------------------------------------------ */
+.step-legend {
+  display: grid; grid-template-columns: 104px 1fr 62px 24px; gap: 6px;
+  font-size: 9px; text-transform: uppercase; letter-spacing: .06em;
+  color: var(--ink-4); padding: 0 2px;
+}
+.step-row { display: grid; grid-template-columns: 104px 1fr 62px 24px; gap: 6px; align-items: center; }
+.step-row input[type="time"],
+.step-row input[type="number"] { width: 100%; }
+.routine-nudge {
+  font-size: 11.5px; color: var(--ink-2); line-height: 1.45;
+  margin-bottom: 9px;
+}
+
+/* ------------------------------------------------------ note focus mode */
+/* Focus mode strips the editor to the writing: no colour row, no toolbar,
+   no footer chrome — just the words, with everything one keypress away. */
+body[data-notefocus="true"] .note-editor .rte-toolbar,
+body[data-notefocus="true"] .note-editor .note-props { display: none; }
+body[data-notefocus="true"] .note-editor .note-editor-head { border-bottom: 1px solid var(--stroke); }
+body[data-notefocus="true"] .note-editor .rte {
+  font-size: 16px;
+  line-height: 1.8;
+  padding: 28px 26px 60px;
+}
+body[data-notefocus="true"] .note-editor .rte > * { max-width: 72ch; margin-left: auto; margin-right: auto; }
+body[data-notefocus="true"] #noteFocus { color: var(--accent); background: var(--accent-soft); }
+
+/* fourteen-day routine adherence bars */
+.consistency-bars { display: flex; align-items: flex-end; gap: 3px; height: 46px; }
+.consistency-bars .cb {
+  flex: 1; height: 100%;
+  display: flex; align-items: flex-end;
+  border-radius: 3px;
+  background: var(--surface-3);
+  overflow: hidden;
+}
+.consistency-bars .cb i {
+  display: block; width: 100%;
+  border-radius: 3px;
+  background: var(--accent);
+  transition: height var(--spring);
+}
+.consistency-bars .cb.full i { background: var(--prio-low); }
+.consistency-bars .cb.off { opacity: .35; }
+.consistency-bars .cb.off i { background: var(--ink-4); }
+
+/* A short block has room for one line only — keep the words, drop the clock. */
+.tt-block.tiny { padding: 1px 4px; justify-content: center; }
+.tt-block.tiny .tt-time { display: none; }
+.tt-block.tiny .tt-title { font-size: 9px; }

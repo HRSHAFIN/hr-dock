@@ -64,6 +64,9 @@ class ReminderEngine {
     const data = this.store.data;
     const settings = data.settings.notifications || {};
     const lead = Number(settings.defaultLeadMinutes) || 0;
+    // 0 disables the follow-up nudge entirely.
+    const nudgeAfter = settings.routineNudgeMinutes === undefined
+      ? 10 : Number(settings.routineNudgeMinutes) || 0;
     const today = DT.todayKey();
     const yesterday = DT.key(DT.addDays(new Date(), -1));
 
@@ -128,6 +131,24 @@ class ReminderEngine {
               + (stepLead > 0 ? ` — in ${stepLead} min` : ''),
             category: routine.category || 'general'
           });
+
+          // Accountability: one follow-up if the step is still untouched a
+          // while after it was due. A routine you silently skip is a routine
+          // that quietly stops existing, so it gets exactly one nudge — not a
+          // stream of them.
+          if (nudgeAfter > 0 && dayKey === today) {
+            out.push({
+              key: `routine-nudge:${routine.id}:${step.id}:${dayKey}`,
+              kind: 'routine-nudge',
+              refId: routine.id,
+              stepId: step.id,
+              day: dayKey,
+              fireAt: when.getTime() + nudgeAfter * 60000,
+              title: `Still open: ${step.title}`,
+              body: `${routine.name} · due at ${DT.formatTime(step.time, data.settings.timeFormat)}`,
+              category: routine.category || 'general'
+            });
+          }
         }
       }
     }

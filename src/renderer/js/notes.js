@@ -327,9 +327,40 @@
     return record;
   }
 
+  /**
+   * Focus mode: hide the editor's own chrome and grow the window into a real
+   * writing surface, remembering the widget's size so it snaps back after.
+   */
+  let boundsBeforeFocus = null;
+
+  async function setFocusMode(on) {
+    const next = on === undefined ? document.body.dataset.notefocus !== 'true' : !!on;
+    if ((document.body.dataset.notefocus === 'true') === next) return;
+    document.body.dataset.notefocus = String(next);
+
+    const state = await hrdock.window.state();
+    if (!state) return;
+    if (next) {
+      boundsBeforeFocus = state.bounds;
+      const area = state.display.workArea;
+      const width = Math.min(900, Math.round(area.width * 0.62));
+      const height = Math.min(960, Math.round(area.height * 0.88));
+      hrdock.window.setBounds({
+        x: Math.round(area.x + (area.width - width) / 2),
+        y: Math.round(area.y + (area.height - height) / 2),
+        width, height
+      });
+      UI.toast({ title: 'Focus mode', message: 'Esc leaves and saves.', timeout: 2000 });
+    } else if (boundsBeforeFocus) {
+      hrdock.window.setBounds(boundsBeforeFocus);
+      boundsBeforeFocus = null;
+    }
+  }
+
   function close() {
     save.cancel();
     commit();
+    if (document.body.dataset.notefocus === 'true') setFocusMode(false);
     $('#noteEditor').hidden = true;
     editingId = null;
     render();
@@ -532,12 +563,14 @@
     // These two were markup-only and never given a glyph, so the editor's
     // delete and close controls were invisible: real buttons you had to know
     // were there.
+    $('#noteFocus').innerHTML = Icons.icon('expand', 13);
     $('#noteDelete').innerHTML = Icons.icon('trash', 13);
     $('#noteClose').innerHTML = Icons.icon('x', 13);
 
     $('#noteAdd').addEventListener('click', () => open(null));
     $('#noteClose').addEventListener('click', close);
 
+    $('#noteFocus').addEventListener('click', () => setFocusMode());
     $('#noteSave').addEventListener('click', () => saveNow());
     $('#noteDone').addEventListener('click', () => { saveNow(true); close(); });
     $('#noteDelete').addEventListener('click', () => {
@@ -576,6 +609,7 @@
       if (e.key === 'Escape') { e.preventDefault(); close(); return; }
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { e.preventDefault(); saveNow(); return; }
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); insertLink(); return; }
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'f') { e.preventDefault(); setFocusMode(); return; }
       if (handleChecklistEnter(e)) return;
       handleShorthand(e);
     });

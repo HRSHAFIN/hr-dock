@@ -239,10 +239,67 @@
       }).join('');
   }
 
+  /**
+   * Routine consistency — the number this app is really about.
+   * Adherence counts steps actually ticked off against steps scheduled, and
+   * ignores days a routine does not run, so a weekday routine is not punished
+   * for the weekend.
+   */
+  function renderRoutineInsight() {
+    const host = $('#routineInsight');
+    if (!host) return;
+    const routines = State.Routines.all();
+    if (!routines.length) { host.hidden = true; return; }
+    host.hidden = false;
+
+    const week = State.Routines.adherence(7);
+    const month = State.Routines.adherence(30);
+    const history = State.Routines.history(14);
+
+    host.innerHTML = `
+      <div class="card-head">
+        <h3>Routine consistency</h3>
+        <span class="pill">${week.percent === null ? 'no data yet' : week.percent + '% this week'}</span>
+      </div>
+      <div class="consistency-bars">
+        ${history.map(d => `
+          <span class="cb${d.percent === null ? ' off' : d.percent === 100 ? ' full' : ''}"
+                title="${esc(DT.relativeDay(d.key))}: ${d.total ? d.done + '/' + d.total + ' steps' : 'nothing scheduled'}">
+            <i style="height:${d.percent === null ? 4 : Math.max(6, d.percent)}%"></i>
+          </span>`).join('')}
+      </div>
+      <div class="kv" style="margin-top:12px">
+        <dt>Perfect days this week</dt><dd>${week.perfectDays || 0} of ${week.days}</dd>
+        <dt>Last 30 days</dt><dd>${month.percent === null ? '—' : month.percent + '%'}</dd>
+      </div>`;
+
+    const list = el('div', { class: 'breakdown', style: { marginTop: '12px' } });
+    for (const routine of routines) {
+      const streak = State.Routines.streak(routine);
+      const cat = State.categoryOf(routine.category);
+      const days = history.filter(d => State.Routines.runsOn(routine, d.key));
+      const total = days.length * Math.max(1, routine.steps.length);
+      const done = days.reduce((sum, d) => sum + (routine.completed[d.key] || []).length, 0);
+      const percent = total ? Math.round((done / total) * 100) : 0;
+
+      const row = el('div', { class: 'bd-row' });
+      row.innerHTML = `
+        <span class="bd-name">${esc(routine.name)}</span>
+        <span class="bd-track"><span class="bd-fill" style="width:${percent}%;background:${cat.color}"></span></span>
+        <span class="bd-val">${percent}%</span>`;
+      row.title = streak > 0
+        ? `${routine.name} — ${percent}% over 14 days, ${streak}-day streak`
+        : `${routine.name} — ${percent}% over 14 days`;
+      list.appendChild(row);
+    }
+    host.appendChild(list);
+  }
+
   function render() {
     if (!mounted) return;
     if (!State.isActiveTab('stats')) return;
     renderGrid();
+    renderRoutineInsight();
     renderWeekBars();
     renderMonthHeat();
     renderBreakdown();

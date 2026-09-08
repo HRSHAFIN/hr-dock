@@ -1,16 +1,19 @@
 # HR Dock
 
-An always-visible Windows desktop dashboard: live clock, calendar, daily schedule,
-tasks, live weather, notes, reminders, productivity insights and system monitoring —
-in one frameless, draggable, translucent widget that starts with Windows.
+An always-visible Windows desktop dashboard built around **following your routines**:
+your week as a timetable, a step-by-step checklist for today, streaks and consistency
+reporting that tell you the truth — plus a clock, calendar, tasks, live weather,
+notes, reminders and system monitoring, in one frameless, draggable widget that
+starts with Windows.
 
 Local-first. Everything lives in a single JSON file on your machine; the only
 network request the app ever makes is the weather lookup.
 
 
 <p align="center">
-  <img src="docs/screenshots/today.png" width="230" alt="Today view with weather and routine checklist">
-  <img src="docs/screenshots/routines.png" width="230" alt="Routines">
+  <img src="docs/screenshots/timetable.png" width="230" alt="The week as a timetable">
+  <img src="docs/screenshots/routines.png" width="230" alt="Today as a routine checklist">
+  <img src="docs/screenshots/today.png" width="230" alt="Today view">
   <img src="docs/screenshots/tasks.png" width="230" alt="Tasks">
   <img src="docs/screenshots/calendar.png" width="230" alt="Calendar">
   <img src="docs/screenshots/notes.png" width="230" alt="Notes">
@@ -23,7 +26,7 @@ network request the app ever makes is the weather lookup.
 ```bash
 npm install          # if the Electron binary fails to download, run: node node_modules/electron/install.js
 npm start            # launch the widget
-npm test             # run the test suite (48 checks, no dependencies)
+npm test             # run the test suite (52 checks, no dependencies)
 npm run dist         # build a Windows installer + portable exe into dist/
 ```
 
@@ -60,13 +63,42 @@ Plus drag-to-reorder, four priorities, categories, due dates and times, recurrin
 tasks that roll forward to their next occurrence when completed, filters
 (Today / Upcoming / All / Done), sorting, a completion ring and a daily streak.
 
-**Routines** — a routine is a named set of timed steps that repeats on the weekdays you
-choose: a morning ritual, a gym split, an end-of-day shutdown. Every step raises its own
-reminder when its time comes, and steps tick off *per day*, so today's progress never
-inherits yesterday's. Today's steps appear on the Today view as a checklist with a
-progress bar — overdue steps turn red, the next one up is highlighted. Routines can be
-paused without deleting them, and three templates (morning, deep work, evening
-wind-down) get the first one going in a click.
+**Routines — the centre of the app.** A routine is a named set of timed steps that
+repeats on the weekdays you choose: a morning ritual, a study block, an evening
+wind-down. The app opens here, because creating a routine is the easy part and
+following one is the point.
+
+*Three ways to look at the same week:*
+
+- **Week** — your routines drawn as a timetable, the way a class schedule is drawn:
+  seven day columns, hour rows, colour-coded blocks sized by how long each step
+  takes. Overlapping steps sit side by side, today's column is tinted, a red line
+  tracks the current time, and clicking a block on today ticks that step off.
+- **Today** — the day as a checklist grouped by routine, each with its own progress
+  bar and streak, plus a seven-day consistency strip underneath.
+- **Manage** — create, edit, pause or delete. Pausing keeps the history.
+
+*What keeps you honest:*
+
+- A **momentum strip** at the top of every routine view: today's completion ring,
+  your streak, this week's adherence, and one plain sentence about where you stand —
+  "2 of 11 done. Breakfast at 07:40" or "3 steps slipped past. Start with Exercise."
+  Every line is derived from your actual step counts, so it never cheers for nothing.
+- **A reminder per step**, at whatever lead time you set.
+- **One follow-up nudge** if a step is still untouched ten minutes after its time.
+  Exactly one — a routine you quietly skip should say something, but nagging is how
+  people turn reminders off.
+- **Streaks that understand your schedule**: consecutive days you finished every
+  step, counting only the days a routine actually runs, so a weekday routine is not
+  broken by Saturday. Today stays "in progress" until you finish it rather than
+  breaking the streak at midnight.
+- **Consistency reporting** in Insights: fourteen-day adherence bars, perfect-day
+  count, thirty-day rate, and a per-routine breakdown.
+
+Reminders can be ticked off from the notification card itself, and opening one lands
+on the Today checklist rather than the timetable — the shortest path from "you were
+going to do this" to "done".
+
 
 **Weather** — live data from [Open-Meteo](https://open-meteo.com) (no API key, no
 account). Temperature, humidity, feels-like, wind, rain probability, pressure, UV,
@@ -74,7 +106,9 @@ sunrise/sunset, an hourly strip and a five-day outlook behind a disclosure.
 °C/°F, automatic location from your IP or any city you search for, and the last
 good reading is kept and shown as stale rather than blanking when offline.
 
-**Notes** — a card grid plus a full-screen editor. The editor takes the markdown
+**Notes** — a card grid plus an editor that covers the whole window, with a focus mode
+(`Ctrl`+`Shift`+`F`) that hides the toolbar, enlarges the type and grows the window
+into a real writing surface, then puts everything back when you leave. The editor takes the markdown
 shorthand people already type by reflex, so the toolbar is optional: `# ` for a
 heading, `- ` for a bullet, `1. ` for a numbered list, `[] ` for a checkbox, `> ` for a
 quote. Enter inside a checklist continues it; Enter on an empty item leaves it. Notes
@@ -131,6 +165,7 @@ Settings → Widget behaviour and in the tray menu.
 | `Ctrl`+`E` | New event |
 | `Ctrl`+`F` | Search notes |
 | `Ctrl`+`K` | Add a link (in the note editor) |
+| `Ctrl`+`Shift`+`F` | Focus mode while writing a note |
 | `←` `→` `↑` `↓` | Move the calendar selection |
 | `T` | Jump the calendar to today |
 | `Shift`+wheel | Page months on the calendar |
@@ -149,7 +184,7 @@ src/
     system.js    CPU/RAM from Node; disks, battery, net and thermals from one
                  long-lived PowerShell helper that only runs while the tab is open
     reminders.js reminder engine: one 15s tick re-derives what is due
-                 (events, routine steps, dated tasks and birthdays)
+                 (events, routine steps + follow-up nudges, tasks, birthdays)
   preload/
     preload.js   contextBridge: a fixed, typed API — no raw IPC, no Node in the UI
   shared/

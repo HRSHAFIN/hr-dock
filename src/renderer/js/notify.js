@@ -8,6 +8,7 @@
   function iconFor(kind) {
     if (kind === 'birthday') return 'cake';
     if (kind === 'todo') return 'tasks';
+    if (kind === 'routine' || kind === 'routine-nudge') return 'routine';
     return 'alarm';
   }
 
@@ -54,6 +55,21 @@
       });
     }
 
+    // Ticking a routine step off from the reminder itself is the shortest path
+    // between "you were going to do this" and "done".
+    if (reminder.kind === 'routine' || reminder.kind === 'routine-nudge') {
+      actions.unshift({
+        label: 'Done',
+        onClick: () => {
+          const routine = State.Routines.byId(reminder.refId);
+          const day = reminder.day || DT.todayKey();
+          const already = routine && (routine.completed[day] || []).includes(reminder.stepId);
+          if (routine && !already) State.Routines.toggleStep(routine.id, reminder.stepId, day);
+          hrdock.reminders.dismiss(reminder.key);
+        }
+      });
+    }
+
     UI.toast({
       kind: 'reminder',
       icon: iconFor(reminder.kind),
@@ -73,6 +89,11 @@
       App.setTab('tasks');
       const todo = State.Todos.byId(reminder.refId);
       if (todo) Tasks.openEditor(todo);
+    } else if (reminder.kind === 'routine' || reminder.kind === 'routine-nudge') {
+      // Land on the checklist, not the timetable: the point of opening this is
+      // to do the step and tick it off.
+      App.setTab('routines');
+      Routines.setMode('today');
     } else {
       App.setTab('calendar');
       if (reminder.day) Calendar.select(reminder.day);

@@ -345,7 +345,8 @@
         id: s.id || uid('st'),
         title: (s.title || '').trim(),
         time: s.time || '',
-        duration: Number(s.duration) || 0
+        // A timetable needs a block to draw, so every step has a length.
+        duration: Math.max(5, Number(s.duration) || 30)
       }))
       .filter(s => s.title)
       .sort((a, b) => (a.time || '99:99').localeCompare(b.time || '99:99'));
@@ -381,11 +382,14 @@
         if (!Routines.runsOn(routine, dayKey)) continue;
         const done = routine.completed[dayKey] || [];
         for (const step of routine.steps) {
+          const start = DT.toMinutes(step.time);
           out.push({
             ...step,
             routineId: routine.id,
             routineName: routine.name,
             category: routine.category,
+            startMinutes: start,
+            endMinutes: start === null ? null : start + (step.duration || 30),
             done: done.includes(step.id)
           });
         }
@@ -431,11 +435,97 @@
       return !wasDone;
     },
 
-    /** How much of today's routine work is done, for the progress ring. */
+    /** How much of a day's routine work is done, for the progress ring. */
     progress(dayKey) {
       const steps = Routines.stepsFor(dayKey || DT.todayKey());
       const done = steps.filter(s => s.done).length;
       return { done, total: steps.length, percent: steps.length ? (done / steps.length) * 100 : 0 };
+    },
+
+    /** Was every step of this routine ticked off on `dayKey`? */
+    completedOn(routine, dayKey) {
+      if (!Routines.runsOn(routine, dayKey)) return false;
+      if (!routine.steps.length) return false;
+      const done = routine.completed[dayKey] || [];
+      return routine.steps.every(s => done.includes(s.id));
+    },
+
+    /**
+     * Consecutive days a routine was finished, counting only the days it
+     * actually runs — a weekday routine is not "broken" by the weekend.
+     * Today still in progress does not break the streak; yesterday does.
+     */
+    streak(routine) {
+      let cursor = new Date();
+      let current = 0;
+      // Give today a pass until it is finished, so a morning check-in does not
+      // show the streak as already lost.
+      if (Routines.runsOn(routine, DT.key(cursor)) && !Routines.completedOn(routine, DT.key(cursor))) {
+        cursor = DT.addDays(cursor, -1);
+      }
+      for (let i = 0; i < 400; i++) {
+        const key = DT.key(cursor);
+        if (Routines.runsOn(routine, key)) {
+          if (!Routines.completedOn(routine, key)) break;
+          current++;
+        }
+        cursor = DT.addDays(cursor, -1);
+      }
+      return current;
+    },
+
+    /** Per-day completion over the last `days` days, oldest first. */
+    history(days) {
+      const out = [];
+      const span = days || 7;
+      for (let i = span - 1; i >= 0; i--) {
+        const date = DT.addDays(new Date(), -i);
+        const key = DT.key(date);
+        const steps = Routines.stepsFor(key);
+        const done = steps.filter(s => s.done).length;
+        out.push({
+          key,
+          date,
+          done,
+          total: steps.length,
+          percent: steps.length ? Math.round((done / steps.length) * 100) : null
+        });
+      }
+      return out;
+    },
+
+    /** Adherence across a window, ignoring days with nothing scheduled. */
+    adherence(days) {
+      const history = Routines.history(days || 7).filter(d => d.total > 0);
+      if (!history.length) return { percent: null, days: 0, done: 0, total: 0 };
+      const done = history.reduce((sum, d) => sum + d.done, 0);
+      const total = history.reduce((sum, d) => sum + d.total, 0);
+      return {
+        percent: Math.round((done / total) * 100),
+        days: history.length,
+        done,
+        total,
+        perfectDays: history.filter(d => d.percent === 100).length
+      };
+    },
+
+    /** The next step still to do today, and whether it is already late. */
+    nextStep(dayKey) {
+      const day = dayKey || DT.todayKey();
+      const now = new Date().getHours() * 60 + new Date().getMinutes();
+      const pending = Routines.stepsFor(day).filter(s => !s.done);
+      if (!pending.length) return null;
+      const upcoming = pending.find(s => (DT.toMinutes(s.time) || 0) >= now);
+      const step = upcoming || pending[0];
+      const mins = DT.toMinutes(step.time) || 0;
+      return { ...step, minutesAway: mins - now, late: mins < now };
+    },
+
+    /** Steps that are past their time and still untouched. */
+    overdue(dayKey) {
+      const day = dayKey || DT.todayKey();
+      const now = new Date().getHours() * 60 + new Date().getMinutes();
+      return Routines.stepsFor(day).filter(s => !s.done && (DT.toMinutes(s.time) || 0) < now);
     }
   };
 
