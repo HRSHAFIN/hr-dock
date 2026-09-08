@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'none'; media-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>HR Dock</title>
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/layout.css">
+</head>
+<body data-tab="today">
+<div class="frame" id="frame">
+  <div class="frame-sheen" aria-hidden="true"></div>
+
+  <!-- ------------------------------------------------------------- chrome -->
+  <header class="chrome" id="chrome">
+    <div class="chrome-grip">
+      <span class="brand">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span class="brand-name">HR Dock</span>
+      </span>
+      <span class="chrome-status" id="chromeStatus"></span>
+    </div>
+    <div class="chrome-actions">
+      <button class="icon-btn" id="btnPin" title="Always on top (keeps HR Dock above other windows)" aria-pressed="true"></button>
+      <button class="icon-btn" id="btnCompact" title="Compact mode  ·  Ctrl+Alt+C"></button>
+      <button class="icon-btn" id="btnHelp" title="Help &amp; shortcuts"></button>
+      <button class="icon-btn" id="btnSettings" title="Settings"></button>
+      <button class="icon-btn" id="btnHide" title="Hide widget  ·  Ctrl+Alt+A"></button>
+      <button class="icon-btn danger" id="btnQuit" title="Close HR Dock completely"></button>
+    </div>
+  </header>
+
+  <!-- --------------------------------------------------------------- hero -->
+  <section class="hero" id="hero">
+    <div class="hero-clock">
+      <div class="clock" id="clock">
+        <span id="clockMain">--:--</span><span class="clock-seconds" id="clockSeconds">00</span><span class="clock-period" id="clockPeriod"></span>
+      </div>
+      <div class="hero-date">
+        <span class="hero-weekday" id="heroWeekday">—</span>
+        <span class="dot-sep"></span>
+        <span id="heroDate">—</span>
+        <span class="hero-zone" id="heroZone"></span>
+      </div>
+    </div>
+    <button class="hero-weather" id="heroWeather" title="Weather — click to refresh">
+      <span class="hw-icon" id="hwIcon"></span>
+      <span class="hw-body">
+        <span class="hw-temp" id="hwTemp">--°</span>
+        <span class="hw-desc" id="hwDesc">Loading…</span>
+      </span>
+    </button>
+  </section>
+
+  <!-- --------------------------------------------------------- compact view -->
+  <section class="compact-pane" id="compactPane">
+    <div class="compact-row" id="compactNext"></div>
+    <div class="compact-row compact-progress">
+      <div class="mini-bar"><span id="compactBar"></span></div>
+      <span class="mini-label" id="compactLabel">—</span>
+    </div>
+  </section>
+
+  <!-- --------------------------------------------------------------- tabs -->
+  <nav class="tabs" id="tabs" role="tablist">
+    <button class="tab" data-tab="today"    role="tab" title="Today"><span class="tab-icon"></span><span class="tab-label">Today</span></button>
+    <button class="tab" data-tab="calendar" role="tab" title="Calendar"><span class="tab-icon"></span><span class="tab-label">Calendar</span></button>
+    <button class="tab" data-tab="tasks"    role="tab" title="Tasks"><span class="tab-icon"></span><span class="tab-label">Tasks</span></button>
+    <button class="tab" data-tab="routines" role="tab" title="Routines"><span class="tab-icon"></span><span class="tab-label">Routines</span></button>
+    <button class="tab" data-tab="notes"    role="tab" title="Notes"><span class="tab-icon"></span><span class="tab-label">Notes</span></button>
+    <button class="tab" data-tab="stats"    role="tab" title="Insights"><span class="tab-icon"></span><span class="tab-label">Insights</span></button>
+    <button class="tab" data-tab="system"   role="tab" title="System"><span class="tab-icon"></span><span class="tab-label">System</span></button>
+    <button class="tab" data-tab="settings" role="tab" title="Settings"><span class="tab-icon"></span><span class="tab-label">Settings</span></button>
+    <span class="tab-indicator" id="tabIndicator"></span>
+  </nav>
+
+  <!-- -------------------------------------------------------------- views -->
+  <main class="views" id="views">
+
+    <!-- TODAY -->
+    <section class="view" data-view="today">
+      <div class="card weather-card" id="weatherCard"></div>
+
+      <div class="card" id="routineToday" hidden></div>
+
+      <div class="section-head">
+        <h2>Today's schedule</h2>
+        <button class="ghost-btn" id="addEventToday">+ Event</button>
+      </div>
+      <div class="timeline" id="todayTimeline"></div>
+
+      <div class="section-head">
+        <h2>Focus tasks</h2>
+        <span class="section-meta" id="todayTaskMeta"></span>
+      </div>
+      <div class="list" id="todayTasks"></div>
+
+      <div class="card focus-card" id="focusCard"></div>
+    </section>
+
+    <!-- CALENDAR -->
+    <section class="view" data-view="calendar">
+      <div class="cal-head">
+        <button class="icon-btn sm" id="calPrev" title="Previous month"></button>
+        <button class="cal-title" id="calTitle">—</button>
+        <button class="icon-btn sm" id="calNext" title="Next month"></button>
+        <div class="seg" id="calModeSeg">
+          <button data-mode="month" class="active">Month</button>
+          <button data-mode="week">Week</button>
+        </div>
+      </div>
+      <div class="cal-weekdays" id="calWeekdays"></div>
+      <div class="cal-grid" id="calGrid"></div>
+      <div class="section-head">
+        <h2 id="calDayTitle">—</h2>
+        <button class="ghost-btn" id="addEventDay">+ Event</button>
+      </div>
+      <div class="list" id="calDayList"></div>
+      <div class="section-head"><h2>Upcoming</h2></div>
+      <div class="list" id="calUpcoming"></div>
+    </section>
+
+    <!-- TASKS -->
+    <section class="view" data-view="tasks">
+      <div class="task-compose">
+        <input type="text" id="taskInput" placeholder="Add a task…  (try: report tomorrow !high #work)" autocomplete="off">
+        <button class="primary-btn" id="taskAdd">Add</button>
+      </div>
+      <div class="filter-row" id="taskFilters">
+        <button class="chip active" data-filter="today">Today</button>
+        <button class="chip" data-filter="upcoming">Upcoming</button>
+        <button class="chip" data-filter="all">All</button>
+        <button class="chip" data-filter="done">Done</button>
+        <select id="taskSort" class="mini-select" title="Sort order">
+          <option value="manual">Manual</option>
+          <option value="priority">Priority</option>
+          <option value="due">Due date</option>
+          <option value="created">Created</option>
+        </select>
+      </div>
+      <div class="task-stats" id="taskStats"></div>
+      <div class="list sortable" id="taskList"></div>
+    </section>
+
+    <!-- ROUTINES -->
+    <section class="view" data-view="routines">
+      <div class="notes-head">
+        <button class="primary-btn" id="routineAdd">+ New routine</button>
+        <button class="ghost-btn" id="routineTemplates">Use a template</button>
+      </div>
+      <div class="routine-list" id="routineList"></div>
+    </section>
+
+    <!-- NOTES -->
+    <section class="view" data-view="notes">
+      <div class="notes-head">
+        <input type="search" id="noteSearch" placeholder="Search notes…" autocomplete="off">
+        <button class="primary-btn" id="noteAdd">+ Note</button>
+      </div>
+      <div class="filter-row" id="noteCats"></div>
+      <div class="notes-grid" id="notesGrid"></div>
+      <div class="note-editor" id="noteEditor" hidden>
+        <div class="note-editor-head">
+          <input type="text" id="noteTitle" placeholder="Title" autocomplete="off">
+          <button class="icon-btn sm" id="notePin" title="Pin note"></button>
+          <button class="icon-btn sm danger" id="noteDelete" title="Delete note"></button>
+          <button class="icon-btn sm" id="noteClose" title="Close editor"></button>
+        </div>
+        <div class="rte-toolbar" id="rteToolbar">
+          <button data-cmd="bold" title="Bold"><b>B</b></button>
+          <button data-cmd="italic" title="Italic"><i>I</i></button>
+          <button data-cmd="underline" title="Underline"><u>U</u></button>
+          <button data-cmd="strikeThrough" title="Strikethrough"><s>S</s></button>
+          <span class="rte-sep"></span>
+          <button data-cmd="insertUnorderedList" title="Bulleted list">•—</button>
+          <button data-cmd="insertOrderedList" title="Numbered list">1.</button>
+          <button data-cmd="checklist" title="Checklist">☑</button>
+          <span class="rte-sep"></span>
+          <button data-cmd="hiliteColor" title="Highlight">▨</button>
+          <button data-cmd="removeFormat" title="Clear formatting">⌫</button>
+          <span class="rte-sep"></span>
+          <span class="note-colors" id="noteColors"></span>
+          <select id="noteCategory" class="mini-select"></select>
+        </div>
+        <div class="rte" id="noteBody" contenteditable="true" spellcheck="true"></div>
+        <div class="note-editor-foot"><span id="noteSaved">Saved</span></div>
+      </div>
+    </section>
+
+    <!-- INSIGHTS -->
+    <section class="view" data-view="stats">
+      <div class="stat-grid" id="statGrid"></div>
+      <div class="card">
+        <div class="card-head"><h3>Last 7 days</h3><span id="weekScore" class="pill"></span></div>
+        <div class="bars" id="weekBars"></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h3>This month</h3><span id="monthMeta" class="pill"></span></div>
+        <div class="heat" id="monthHeat"></div>
+        <div class="heat-legend"><span>Less</span><i data-l="0"></i><i data-l="1"></i><i data-l="2"></i><i data-l="3"></i><i data-l="4"></i><span>More</span></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h3>Category breakdown</h3></div>
+        <div class="breakdown" id="catBreakdown"></div>
+      </div>
+    </section>
+
+    <!-- SYSTEM -->
+    <section class="view" data-view="system">
+      <div class="gauge-row" id="gaugeRow"></div>
+      <div class="card"><div class="card-head"><h3>Storage</h3></div><div class="meters" id="diskMeters"></div></div>
+      <div class="card"><div class="card-head"><h3>Network</h3><span class="pill" id="netPill">—</span></div><div class="spark" id="netSpark"></div></div>
+      <div class="card"><div class="card-head"><h3>Machine</h3></div><div class="kv" id="sysKv"></div></div>
+    </section>
+
+    <!-- SETTINGS -->
+    <section class="view" data-view="settings">
+      <div class="settings" id="settings"></div>
+    </section>
+  </main>
+
+  <!-- resize handles (frameless windows need their own) -->
+  <div class="rz rz-n"  data-edge="n"></div>
+  <div class="rz rz-s"  data-edge="s"></div>
+  <div class="rz rz-e"  data-edge="e"></div>
+  <div class="rz rz-w"  data-edge="w"></div>
+  <div class="rz rz-ne" data-edge="ne"></div>
+  <div class="rz rz-nw" data-edge="nw"></div>
+  <div class="rz rz-se" data-edge="se"></div>
+  <div class="rz rz-sw" data-edge="sw"></div>
+</div>
+
+<div class="toasts" id="toasts" aria-live="polite"></div>
+<div class="modal-root" id="modalRoot" hidden></div>
+
+<script src="../shared/datetime.js"></script>
+<script src="js/util.js"></script>
+<script src="js/icons.js"></script>
+<script src="js/state.js"></script>
+<script src="js/clock.js"></script>
+<script src="js/weather.js"></script>
+<script src="js/events.js"></script>
+<script src="js/calendar.js"></script>
+<script src="js/tasks.js"></script>
+<script src="js/routines.js"></script>
+<script src="js/notes.js"></script>
+<script src="js/stats.js"></script>
+<script src="js/sysmon.js"></script>
+<script src="js/notify.js"></script>
+<script src="js/settings.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

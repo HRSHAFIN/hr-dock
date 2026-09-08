@@ -1,0 +1,49 @@
+{
+  "name": "hr-dock",
+  "productName": "HR Dock",
+  "version": "1.0.0",
+  "description": "HR Dock — a premium always-on Windows desktop productivity dashboard: clock, calendar, schedule, tasks, weather, notes, reminders, analytics and system monitoring.",
+  "main": "src/main/main.js",
+  "author": "Hasibur Shafin",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "test": "node test/run.js",
+    "icon": "node scripts/make-icon.js",
+    "dist": "electron-builder --win nsis portable",
+    "pack": "electron-builder --dir"
+  },
+  "devDependencies": {
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.hrdock.app",
+    "productName": "HR Dock",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "src/**/*",
+      "assets/**/*",
+      "package.json",
+      "!**/*.map"
+    ],
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ],
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "shortcutName": "HR Dock"
+    }
+  }
+}

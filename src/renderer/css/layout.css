@@ -1,0 +1,255 @@
+/* HR Dock — window chrome, hero, navigation and view scaffolding. */
+
+.frame {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--stroke);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  isolation: isolate;
+}
+
+/* Diagonal light catch along the top-left edge — the Fluent "sheen". */
+.frame-sheen {
+  position: absolute;
+  inset: 0;
+  background: var(--sheen);
+  pointer-events: none;
+  z-index: 0;
+}
+
+body[data-clickthrough="true"] .frame { border-color: var(--accent-line); }
+
+/* ------------------------------------------------------------- chrome bar */
+.chrome {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  padding: 7px 8px 7px 14px;
+  flex: 0 0 auto;
+}
+
+.chrome-grip {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex: 1;
+  min-width: 0;
+  height: 26px;
+  -webkit-app-region: drag;      /* the whole strip drags the widget */
+}
+
+.brand { display: inline-flex; align-items: center; gap: 7px; }
+.brand-mark {
+  width: 9px; height: 9px; border-radius: 3px;
+  background: linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 45%, #ff8fc4));
+  box-shadow: 0 0 12px var(--accent-soft);
+}
+.brand-name {
+  font-size: 11.5px; font-weight: 600; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--ink-3);
+}
+.chrome-status {
+  font-size: 11px; color: var(--ink-4);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+.chrome-actions { display: flex; gap: 2px; -webkit-app-region: no-drag; }
+
+/* --------------------------------------------------------------- the hero */
+.hero {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding: 2px 16px 14px;
+  -webkit-app-region: drag;
+  flex: 0 0 auto;
+}
+.hero > * { -webkit-app-region: no-drag; }
+
+.hero-clock { min-width: 0; }
+
+.clock {
+  display: flex;
+  align-items: baseline;
+  gap: 3px;
+  font-family: "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif;
+  font-size: 40px;
+  font-weight: 300;
+  letter-spacing: -.035em;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.clock-seconds {
+  font-size: 15px; font-weight: 400; color: var(--ink-3);
+  transition: opacity var(--fast);
+}
+.clock-period { font-size: 14px; font-weight: 600; color: var(--ink-3); margin-left: 3px; }
+
+.hero-date {
+  display: flex; align-items: center; gap: 7px;
+  margin-top: 5px; font-size: 12px; color: var(--ink-2);
+  white-space: nowrap;
+}
+.hero-weekday { font-weight: 600; color: var(--ink); }
+.hero-zone { color: var(--ink-4); font-size: 11px; }
+.dot-sep { width: 3px; height: 3px; border-radius: 50%; background: var(--ink-4); }
+
+.hero-weather {
+  display: flex; align-items: center; gap: 9px;
+  padding: 8px 12px 8px 10px;
+  border-radius: var(--radius-lg);
+  background: var(--surface-1);
+  border: 1px solid var(--stroke);
+  transition: background var(--fast), transform var(--fast), border-color var(--fast);
+  max-width: 47%;
+}
+.hero-weather:hover { background: var(--surface-2); border-color: var(--stroke-strong); }
+.hero-weather:active { transform: scale(.97); }
+.hw-icon { display: grid; place-items: center; width: 26px; height: 26px; color: var(--accent); }
+.hw-icon svg { width: 24px; height: 24px; }
+.hw-body { display: flex; flex-direction: column; align-items: flex-start; min-width: 0; }
+.hw-temp { font-size: 17px; font-weight: 600; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.hw-desc {
+  font-size: 10.5px; color: var(--ink-3); max-width: 130px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+/* ------------------------------------------------------------------ tabs */
+.tabs {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  gap: 2px;
+  padding: 0 10px 8px;
+  flex: 0 0 auto;
+}
+.tab {
+  position: relative;
+  flex: 1 1 auto;
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 7px 4px 6px;
+  border-radius: var(--radius);
+  color: var(--ink-3);
+  transition: color var(--fast), background var(--fast);
+}
+.tab:hover { color: var(--ink); background: var(--surface-1); }
+.tab svg { width: 17px; height: 17px; }
+.tab-label {
+  font-size: 9.5px; letter-spacing: .02em; font-weight: 500;
+  opacity: 0; max-height: 0; transition: opacity var(--base), max-height var(--base);
+}
+.tab[aria-selected="true"] { color: var(--accent); }
+.tab[aria-selected="true"] .tab-label { opacity: 1; max-height: 14px; }
+.tab-indicator {
+  position: absolute;
+  bottom: 3px; left: 0;
+  height: 2.5px; width: 0;
+  border-radius: 2px;
+  background: var(--accent);
+  box-shadow: 0 0 10px var(--accent-soft);
+  transition: transform var(--spring), width var(--spring);
+  pointer-events: none;
+}
+
+/* ----------------------------------------------------------------- views */
+.views {
+  position: relative;
+  z-index: 1;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0 14px 16px;
+}
+.view { display: none; }
+.view.active { display: block; animation: fade-up var(--base) both; }
+
+.section-head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--sp-2);
+  margin: 18px 2px 8px;
+}
+.section-head:first-child { margin-top: 6px; }
+.section-meta { font-size: 11px; color: var(--ink-3); }
+
+/* ---------------------------------------------------------- compact mode */
+.compact-pane { display: none; }
+
+body[data-compact="true"] .tabs,
+body[data-compact="true"] .views { display: none; }
+
+body[data-compact="true"] .compact-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0 16px 14px;
+  flex: 1 1 auto;
+  min-height: 0;
+  justify-content: flex-end;
+}
+body[data-compact="true"] .clock { font-size: 34px; }
+body[data-compact="true"] .hero { padding-bottom: 10px; }
+body[data-compact="true"] .frame { border-radius: 16px; }
+
+.compact-row { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 12px; }
+.compact-next {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 10px; border-radius: var(--radius);
+  background: var(--surface-1); border: 1px solid var(--stroke);
+  width: 100%; min-width: 0;
+}
+.compact-next .cn-time { font-variant-numeric: tabular-nums; color: var(--accent); font-weight: 600; }
+.compact-next .cn-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.compact-progress { gap: 10px; }
+.mini-bar {
+  flex: 1; height: 5px; border-radius: 3px;
+  background: var(--surface-3); overflow: hidden;
+}
+.mini-bar span {
+  display: block; height: 100%; width: 0;
+  border-radius: 3px;
+  background: linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--accent) 40%, #58c9a6));
+  transition: width var(--spring);
+}
+.mini-label { font-size: 11px; color: var(--ink-3); white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+/* -------------------------------------------------------- resize handles */
+.rz { position: absolute; z-index: 5; -webkit-app-region: no-drag; }
+.rz-n  { top: 0; left: 8px; right: 8px; height: 5px; cursor: ns-resize; }
+.rz-s  { bottom: 0; left: 8px; right: 8px; height: 5px; cursor: ns-resize; }
+.rz-w  { left: 0; top: 8px; bottom: 8px; width: 5px; cursor: ew-resize; }
+.rz-e  { right: 0; top: 8px; bottom: 8px; width: 5px; cursor: ew-resize; }
+.rz-nw { top: 0; left: 0; width: 12px; height: 12px; cursor: nwse-resize; }
+.rz-se { bottom: 0; right: 0; width: 14px; height: 14px; cursor: nwse-resize; }
+.rz-ne { top: 0; right: 0; width: 12px; height: 12px; cursor: nesw-resize; }
+.rz-sw { bottom: 0; left: 0; width: 12px; height: 12px; cursor: nesw-resize; }
+
+/* A faint grip mark so the corner reads as resizable. */
+.rz-se::after {
+  content: "";
+  position: absolute; right: 4px; bottom: 4px;
+  width: 6px; height: 6px;
+  border-right: 1.5px solid var(--ink-4);
+  border-bottom: 1.5px solid var(--ink-4);
+  border-radius: 0 0 3px 0;
+  opacity: 0; transition: opacity var(--base);
+}
+.frame:hover .rz-se::after { opacity: 1; }
+
+/* --------------------------------------------------------- narrow layout */
+@media (max-width: 400px) {
+  .clock { font-size: 34px; }
+  .hw-desc { display: none; }
+  .tab-label { display: none; }
+  .views { padding: 0 10px 14px; }
+}
