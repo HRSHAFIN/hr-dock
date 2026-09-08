@@ -180,7 +180,8 @@ input[type="range"]::-webkit-slider-thumb:active { transform: scale(1.15); }
 .wx-place svg { width: 11px; height: 11px; }
 
 .wx-metrics {
-  display: grid; grid-template-columns: repeat(4, 1fr);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(84px, 1fr));
   gap: 8px; margin-top: 14px;
 }
 .wx-metric {
@@ -550,7 +551,11 @@ html[data-theme="light"] .note-editor { background: #f9fafd; }
 }
 
 /* -------------------------------------------------------------- insights */
-.stat-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 6px; }
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px; margin-top: 6px;
+}
 .stat {
   padding: 12px;
   border-radius: var(--radius-lg);
@@ -579,10 +584,19 @@ html[data-theme="light"] .note-editor { background: #f9fafd; }
 .bar-col .bar-val { font-size: 10px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
 
 .heat {
-  display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px;
-  /* Cap the width so the day cells stay small squares rather than growing
-     into a wall of tiles on a wide widget. */
-  max-width: 232px;
+  display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px;
+  /* Cap the width so cells stay squares, and centre it so a wide widget does
+     not strand the grid against the left edge of its card. */
+  max-width: 252px;
+  margin: 0 auto;
+}
+.heat-days {
+  display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px;
+  max-width: 252px; margin: 0 auto 5px;
+}
+.heat-days span {
+  text-align: center; font-size: 9px; font-weight: 600;
+  letter-spacing: .04em; text-transform: uppercase; color: var(--ink-4);
 }
 .heat i {
   aspect-ratio: 1; border-radius: 3px;
@@ -596,7 +610,7 @@ html[data-theme="light"] .note-editor { background: #f9fafd; }
 .heat i[data-l="4"] { background: var(--accent); }
 .heat i.future { opacity: .3; }
 .heat-legend {
-  display: flex; align-items: center; gap: 4px; justify-content: flex-end;
+  display: flex; align-items: center; gap: 4px; justify-content: center;
   margin-top: 8px; font-size: 9.5px; color: var(--ink-4);
 }
 .heat-legend i { width: 10px; height: 10px; border-radius: 2px; background: var(--surface-3); }
@@ -623,7 +637,11 @@ html[data-theme="light"] .note-editor { background: #f9fafd; }
 .focus-copy p { font-size: 11px; color: var(--ink-3); }
 
 /* ---------------------------------------------------------------- system */
-.gauge-row { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 6px; }
+.gauge-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 8px; margin-top: 6px;
+}
 .gauge {
   display: flex; align-items: center; gap: 11px;
   padding: 12px; border-radius: var(--radius-lg);
@@ -1016,3 +1034,27 @@ mark {
 }
 .rte a { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
 .rte a:hover { text-decoration-thickness: 2px; }
+
+/* ------------------------------------------------------ note editor chrome */
+/* The formatting row never wraps; on a very narrow widget it scrolls instead,
+   which keeps the editor looking like a toolbar rather than a pile. */
+.rte-toolbar {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+  border-bottom: none;
+  padding-bottom: 4px;
+}
+.rte-toolbar::-webkit-scrollbar { height: 0; }
+.rte-toolbar button { flex: 0 0 auto; display: grid; place-items: center; }
+.rte-toolbar button svg { display: block; }
+.rte-letter { font-size: 12.5px; }
+.rte-letter b, .rte-letter i, .rte-letter u, .rte-letter s { font-style: normal; }
+.rte-letter i { font-style: italic; }
+
+.note-props {
+  display: flex; align-items: center; gap: 10px;
+  padding: 0 12px 9px;
+  border-bottom: 1px solid var(--stroke);
+}
+.note-props .note-colors { margin: 0; }

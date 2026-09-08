@@ -30,7 +30,7 @@ const captureArg = process.argv.find(a => a.startsWith('--capture='));
 const captureTarget = captureArg ? captureArg.slice('--capture='.length) : null;
 if (process.env.HRDOCK_USER_DATA) app.setPath('userData', process.env.HRDOCK_USER_DATA);
 
-const EXPANDED = { width: 460, height: 700, minWidth: 380, minHeight: 460 };
+const EXPANDED = { width: 480, height: 780, minWidth: 380, minHeight: 460 };
 const COMPACT = { width: 340, height: 210, minWidth: 260, minHeight: 120 };
 const SNAP_PX = 24;
 

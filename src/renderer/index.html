@@ -169,19 +169,20 @@
           <button class="icon-btn sm" id="noteClose" title="Save and close"></button>
         </div>
         <div class="rte-toolbar" id="rteToolbar">
-          <button data-cmd="bold" title="Bold"><b>B</b></button>
-          <button data-cmd="italic" title="Italic"><i>I</i></button>
-          <button data-cmd="underline" title="Underline"><u>U</u></button>
-          <button data-cmd="strikeThrough" title="Strikethrough"><s>S</s></button>
+          <button data-cmd="bold" title="Bold  ·  Ctrl+B" class="rte-letter"><b>B</b></button>
+          <button data-cmd="italic" title="Italic  ·  Ctrl+I" class="rte-letter"><i>I</i></button>
+          <button data-cmd="underline" title="Underline  ·  Ctrl+U" class="rte-letter"><u>U</u></button>
+          <button data-cmd="strikeThrough" title="Strikethrough" class="rte-letter"><s>S</s></button>
           <span class="rte-sep"></span>
-          <button data-cmd="insertUnorderedList" title="Bulleted list">•—</button>
-          <button data-cmd="insertOrderedList" title="Numbered list">1.</button>
-          <button data-cmd="checklist" title="Checklist">☑</button>
+          <button data-cmd="insertUnorderedList" data-icon="listBullet" title="Bulleted list  ·  type &quot;- &quot;"></button>
+          <button data-cmd="insertOrderedList" data-icon="listNumber" title="Numbered list  ·  type &quot;1. &quot;"></button>
+          <button data-cmd="checklist" data-icon="checkSquare" title="Checklist  ·  type &quot;[] &quot;"></button>
           <span class="rte-sep"></span>
-          <button data-cmd="link" title="Add link  ·  Ctrl+K">🔗</button>
-          <button data-cmd="hiliteColor" title="Highlight">▨</button>
-          <button data-cmd="removeFormat" title="Clear formatting">⌫</button>
-          <span class="rte-sep"></span>
+          <button data-cmd="link" data-icon="link" title="Add link  ·  Ctrl+K"></button>
+          <button data-cmd="hiliteColor" data-icon="highlight" title="Highlight"></button>
+          <button data-cmd="removeFormat" data-icon="clearFormat" title="Clear formatting"></button>
+        </div>
+        <div class="note-props">
           <span class="note-colors" id="noteColors"></span>
           <select id="noteCategory" class="mini-select"></select>
         </div>

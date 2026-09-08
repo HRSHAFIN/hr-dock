@@ -39,6 +39,13 @@
     pause: '<path d="M8 4v16M16 4v16"/>',
     reset: '<path d="M3 12a9 9 0 1 0 2.6-6.4"/><path d="M3 3v6h6"/>',
 
+    listBullet: '<path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1.4"/><circle cx="4.5" cy="12" r="1.4"/><circle cx="4.5" cy="18" r="1.4"/>',
+    listNumber: '<path d="M10 6h10M10 12h10M10 18h10"/><path d="M4 7V3.5L2.8 4.3"/><path d="M2.6 11.2c.3-.6 1-1 1.7-.7.8.3.9 1.3.3 1.9L2.6 14h3"/><path d="M2.7 17h2.6l-1.5 1.7c.9 0 1.6.4 1.6 1.2 0 .7-.6 1.2-1.5 1.2-.7 0-1.2-.2-1.5-.6"/>',
+    checkSquare: '<rect x="3" y="3" width="18" height="18" rx="3"/><path d="m8 12 2.8 2.8L16.5 9"/>',
+    link: '<path d="M10 13.5a4 4 0 0 0 5.7.4l2.6-2.6a4 4 0 0 0-5.7-5.7L11.1 7"/><path d="M14 10.5a4 4 0 0 0-5.7-.4l-2.6 2.6a4 4 0 0 0 5.7 5.7L12.9 17"/>',
+    highlight: '<path d="m14 4 6 6-8.5 8.5H6l-1.5-3L14 4Z"/><path d="M4 21h16"/>',
+    clearFormat: '<path d="M8 5h11M13 5 9.5 19"/><path d="m15 13 6 6M21 13l-6 6"/>',
+
     // meta / attributes
     clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/>',
     bell: '<path d="M18 8a6 6 0 1 0-12 0c0 6-3 7-3 7h18s-3-1-3-7"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/>',

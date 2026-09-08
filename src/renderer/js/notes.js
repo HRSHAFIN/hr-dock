@@ -524,6 +524,17 @@
     mounted = true;
     try { document.execCommand('defaultParagraphSeparator', false, 'div'); } catch (_) { /* older engines */ }
 
+    // Paint the toolbar glyphs from the icon set: the old mix of emoji and
+    // ASCII rendered at different weights and sizes on every machine.
+    for (const btn of UI.$$('#rteToolbar button[data-icon]')) {
+      btn.innerHTML = Icons.icon(btn.dataset.icon, 15);
+    }
+    // These two were markup-only and never given a glyph, so the editor's
+    // delete and close controls were invisible: real buttons you had to know
+    // were there.
+    $('#noteDelete').innerHTML = Icons.icon('trash', 13);
+    $('#noteClose').innerHTML = Icons.icon('x', 13);
+
     $('#noteAdd').addEventListener('click', () => open(null));
     $('#noteClose').addEventListener('click', close);
 

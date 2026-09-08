@@ -183,6 +183,16 @@
     const today = DT.todayKey();
     let monthTotal = 0;
 
+    // Column headings make the grid readable as a month rather than a blob.
+    const labels = document.querySelector('#monthHeat').previousElementSibling;
+    if (labels && labels.classList.contains('heat-days')) labels.remove();
+    const weekStart = Number(State.settings().firstDayOfWeek) || 0;
+    const head = document.createElement('div');
+    head.className = 'heat-days';
+    head.innerHTML = [0, 1, 2, 3, 4, 5, 6]
+      .map(i => '<span>' + DT.DAY_NAMES[(weekStart + i) % 7].slice(0, 1) + '</span>').join('');
+    host.parentNode.insertBefore(head, host);
+
     host.innerHTML = cells.map(date => {
       const key = DT.key(date);
       const inMonth = date.getMonth() === now.getMonth();
