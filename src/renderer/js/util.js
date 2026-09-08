@@ -100,6 +100,76 @@
     return (div.textContent || '').replace(/\s+/g, ' ').trim();
   }
 
+  // -------------------------------------------------------------- sanitiser
+
+  const ALLOWED_TAGS = new Set([
+    'B', 'STRONG', 'I', 'EM', 'U', 'S', 'STRIKE', 'BR', 'DIV', 'P', 'SPAN',
+    'UL', 'OL', 'LI', 'H1', 'H2', 'H3', 'BLOCKQUOTE', 'HR', 'A', 'CODE', 'MARK'
+  ]);
+  const SAFE_STYLE = /^(background-color|color)$/i;
+
+  /** Keep only colour declarations, and nothing that can load a resource. */
+  function safeStyle(value) {
+    return String(value || '').split(';')
+      .map(rule => rule.trim())
+      .filter(rule => {
+        const [prop, val] = rule.split(':');
+        if (!prop || !val) return false;
+        if (!SAFE_STYLE.test(prop.trim())) return false;
+        return !/url\(|expression|javascript:/i.test(val);
+      })
+      .join('; ');
+  }
+
+  /**
+   * Clean note HTML before it is written into the DOM.
+   *
+   * Notes are stored as HTML and re-rendered with innerHTML, and the import
+   * feature will happily read a file someone else wrote. innerHTML does not run
+   * <script>, but it does run inline handlers like <img onerror>, so anything
+   * outside the allowlist is unwrapped and every attribute is dropped except a
+   * short, checked list.
+   */
+  function sanitizeHtml(html) {
+    const doc = new DOMParser().parseFromString(String(html || ''), 'text/html');
+
+    (function walk(parent) {
+      for (const child of Array.from(parent.childNodes)) {
+        if (child.nodeType === 3) continue;                 // text is fine
+        if (child.nodeType !== 1) { child.remove(); continue; }
+
+        if (!ALLOWED_TAGS.has(child.tagName)) {
+          // Unwrap rather than delete, so the writing survives the tag.
+          while (child.firstChild) parent.insertBefore(child.firstChild, child);
+          child.remove();
+          continue;
+        }
+
+        for (const attr of Array.from(child.attributes)) {
+          const name = attr.name.toLowerCase();
+          if (name === 'data-done') continue;
+          if (name === 'class') {
+            if (attr.value !== 'chk') child.removeAttribute('class');
+            continue;
+          }
+          if (name === 'href' && child.tagName === 'A') {
+            if (!/^https?:\/\//i.test(attr.value.trim())) child.removeAttribute('href');
+            continue;
+          }
+          if (name === 'style') {
+            const safe = safeStyle(attr.value);
+            if (safe) child.setAttribute('style', safe); else child.removeAttribute('style');
+            continue;
+          }
+          child.removeAttribute(attr.name);                 // onerror, src, id, …
+        }
+        walk(child);
+      }
+    }(doc.body));
+
+    return doc.body.innerHTML;
+  }
+
   // ------------------------------------------------------------------ sound
 
   let audioCtx = null;
@@ -261,7 +331,7 @@
 
   global.UI = {
     $, $$, el, esc, uid, debounce, throttle, clamp,
-    formatBytes, formatRate, formatDuration, plural, textOf,
+    formatBytes, formatRate, formatDuration, plural, textOf, sanitizeHtml,
     chime, toast, modal, confirm
   };
 }(window));

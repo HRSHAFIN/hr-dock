@@ -13,6 +13,7 @@ network request the app ever makes is the weather lookup.
   <img src="docs/screenshots/routines.png" width="230" alt="Routines">
   <img src="docs/screenshots/tasks.png" width="230" alt="Tasks">
   <img src="docs/screenshots/calendar.png" width="230" alt="Calendar">
+  <img src="docs/screenshots/notes.png" width="230" alt="Notes">
 </p>
 
 ---
@@ -73,9 +74,16 @@ sunrise/sunset, an hourly strip and a five-day outlook behind a disclosure.
 °C/°F, automatic location from your IP or any city you search for, and the last
 good reading is kept and shown as stale rather than blanking when offline.
 
-**Notes** — sticky-note grid with colours, pinning, categories, live search and a
-rich-text editor (bold/italic/underline/strike, lists, checklists, highlight) that
-autosaves and pastes as plain text.
+**Notes** — a card grid plus a full-screen editor. The editor takes the markdown
+shorthand people already type by reflex, so the toolbar is optional: `# ` for a
+heading, `- ` for a bullet, `1. ` for a numbered list, `[] ` for a checkbox, `> ` for a
+quote. Enter inside a checklist continues it; Enter on an empty item leaves it. Notes
+autosave as you type, take their title from the first line if you don't give them one,
+and show checklist progress on the card. Search highlights matches, cards can be
+pinned, duplicated, coloured and categorised, and a deleted note can be brought back
+from the undo toast. `Ctrl`+`K` adds a link; pasted text arrives as plain text (a
+pasted URL becomes a link), and stored note HTML is sanitised on the way in and out,
+so an imported backup cannot smuggle markup into the app.
 
 **Reminders** — desktop toasts plus in-app cards with snooze and complete actions,
 for events, tasks and birthdays (which report the age). Custom lead times, a
@@ -119,6 +127,7 @@ Settings → Widget behaviour and in the tray menu.
 | `Ctrl`+`N` | New task |
 | `Ctrl`+`E` | New event |
 | `Ctrl`+`F` | Search notes |
+| `Ctrl`+`K` | Add a link (in the note editor) |
 | `←` `→` `↑` `↓` | Move the calendar selection |
 | `T` | Jump the calendar to today |
 | `Shift`+wheel | Page months on the calendar |
@@ -269,6 +278,11 @@ npm run dist
 ```
 
 The two macOS `.dylib` symlinks it fails on are irrelevant to a Windows build.
+
+**Close HR Dock before rebuilding.** A running instance holds a lock on
+`distHR Dock 1.0.0.exe`; electron-builder then leaves the old portable file in place
+while happily rebuilding everything else, so you get a "new" build that runs old code.
+Quit from the tray (or the ⏻ button) first.
 
 ## Licence
 

@@ -178,14 +178,16 @@
           <button data-cmd="insertOrderedList" title="Numbered list">1.</button>
           <button data-cmd="checklist" title="Checklist">☑</button>
           <span class="rte-sep"></span>
+          <button data-cmd="link" title="Add link  ·  Ctrl+K">🔗</button>
           <button data-cmd="hiliteColor" title="Highlight">▨</button>
           <button data-cmd="removeFormat" title="Clear formatting">⌫</button>
           <span class="rte-sep"></span>
           <span class="note-colors" id="noteColors"></span>
           <select id="noteCategory" class="mini-select"></select>
         </div>
-        <div class="rte" id="noteBody" contenteditable="true" spellcheck="true"></div>
-        <div class="note-editor-foot"><span id="noteSaved">Saved</span></div>
+        <div class="rte" id="noteBody" contenteditable="true" spellcheck="true"
+             data-placeholder="Start writing…  Type # for a heading, - for a list, [] for a checkbox"></div>
+        <div class="note-editor-foot"><span id="noteCount"></span><span id="noteSaved">Saved</span></div>
       </div>
     </section>
 
