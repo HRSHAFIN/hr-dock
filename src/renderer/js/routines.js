@@ -171,10 +171,25 @@
       const near = segments.find(s => Math.abs(s.start - nowMin) <= MIN_GAP || Math.abs(s.end - nowMin) <= MIN_GAP);
       if (near) {
         near.start = Math.min(near.start, nowMin);
-        near.end = Math.max(near.end, nowMin + 60);
+        near.end = Math.max(near.end, Math.min(24 * 60, nowMin + 60));
+        // Stretching a run towards the now-line can close the fold that used
+        // to follow it. Two runs that now meet would draw a "0h free" band and
+        // shunt everything after it out of line, so fold them together.
+        return mergeSegments(segments);
       }
     }
     return segments;
+  }
+
+  /** Fold together runs with no gap left worth collapsing. */
+  function mergeSegments(segments) {
+    const out = [];
+    for (const seg of segments) {
+      const last = out[out.length - 1];
+      if (last && seg.start - last.end < MIN_GAP) last.end = Math.max(last.end, seg.end);
+      else out.push(seg);
+    }
+    return out;
   }
 
   /** How much vertical room the grid actually has before it would scroll. */
@@ -313,7 +328,9 @@
       const blocks = steps.map(step => {
         const top = scale.yOf(step.startMinutes);
         if (top === null) return '';
-        const bottom = scale.yOf(step.endMinutes);
+        // Nothing past 24:00 is on the grid, so a step that runs over midnight
+        // ends at the foot of the day instead of collapsing to a sliver.
+        const bottom = scale.yOf(Math.min(step.endMinutes, 24 * 60));
         const height = Math.max(10, (bottom === null ? top + 10 : bottom) - top - 1);
         const width = 100 / step._lanes;
         const left = width * step._lane;
@@ -370,7 +387,7 @@
     // draw once more. One correction, never a loop.
     if (!fitting) {
       const views = $('#views');
-      const overflow = views.scrollHeight - views.clientHeight;
+      const overflow = views ? views.scrollHeight - views.clientHeight : 0;
       if (overflow > 0 && pxPerMin > MIN_PX_PER_MIN) {
         fitting = true;
         fitAdjust += overflow;
@@ -453,8 +470,9 @@
 
       const list = el('div', { class: 'routine-check-list' });
       for (const step of groupSteps) {
-        const late = !step.done && step.startMinutes < nowMinutes;
-        const live = !step.done && step.startMinutes <= nowMinutes && step.endMinutes > nowMinutes;
+        const late = step.startMinutes !== null && !step.done && step.startMinutes < nowMinutes;
+        const live = step.startMinutes !== null && !step.done
+          && step.startMinutes <= nowMinutes && step.endMinutes > nowMinutes;
         const row = el('div', {
           class: `routine-check${step.done ? ' done' : ''}${late && !live ? ' late' : ''}${live ? ' next' : ''}`
         });
@@ -555,7 +573,7 @@
       ]
     },
     {
-      name: 'Class day', category: 'study', days: [0, 1, 2, 3, 4],
+      name: 'Class day', category: 'study', days: [1, 2, 3, 4, 5],
       blurb: 'Lectures with a revision slot after',
       steps: [
         { title: 'Leave for campus', time: '08:00', duration: 30 },
@@ -577,7 +595,7 @@
       ]
     },
     {
-      name: 'Work day', category: 'work', days: [0, 1, 2, 3, 4],
+      name: 'Work day', category: 'work', days: [1, 2, 3, 4, 5],
       blurb: 'Deep work first, admin after',
       steps: [
         { title: 'Clear inbox', time: '09:00', duration: 30 },
@@ -853,8 +871,9 @@
 
     const list = el('div', { class: 'routine-check-list' });
     for (const step of steps) {
-      const late = !step.done && step.startMinutes < nowMinutes;
-      const live = !step.done && step.startMinutes <= nowMinutes && step.endMinutes > nowMinutes;
+      const late = step.startMinutes !== null && !step.done && step.startMinutes < nowMinutes;
+      const live = step.startMinutes !== null && !step.done
+        && step.startMinutes <= nowMinutes && step.endMinutes > nowMinutes;
       const row = el('div', {
         class: `routine-check${step.done ? ' done' : ''}${late && !live ? ' late' : ''}${live ? ' next' : ''}`
       });
@@ -887,7 +906,12 @@
       if (btn) setMode(btn.dataset.mode);
     });
 
-    State.on('routines', () => { render(); if (State.isActiveTab('today')) renderToday(); });
+    // New or deleted steps change the shape of the grid, so last draw's
+    // measured correction no longer describes it.
+    State.on('routines', () => {
+      resetFit(); render();
+      if (State.isActiveTab('today')) renderToday();
+    });
     State.on('settings', () => { resetFit(); render(); });
     State.on('tick:day', () => { resetFit(); render(); renderToday(); });
     window.addEventListener('resize', UI.debounce(() => { resetFit(); render(); }, 180));
