@@ -13,6 +13,7 @@
   let mode = 'week';                 // week | today | manage
   let fitting = false;               // guards the single fit-correction pass
   let fitAdjust = 0;                 // pixels the measured chrome needs back
+  let clockScale = null;             // the drawn grid's minute-to-pixel map
   const DAY_LETTERS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
   /** Weekday order follows the user's "week starts on" preference. */
@@ -36,6 +37,31 @@
   }
 
   const fmt = mins => DT.formatTime(DT.fromMinutes(mins), State.settings().timeFormat);
+
+  /* One draw asks for the same day's steps from several places, and a streak
+     walks up to a year of history for every routine — all of it while the
+     clock ticks once a minute. Both are pure functions of stored data, so they
+     are worth remembering until that data changes. */
+  let stepCache = new Map();
+  const streakCache = new Map();
+
+  function stepsOn(dayKey) {
+    let steps = stepCache.get(dayKey);
+    if (!steps) { steps = State.Routines.stepsFor(dayKey); stepCache.set(dayKey, steps); }
+    return steps;
+  }
+
+  /** A routine's streak, recounted only when its data or the day moves on. */
+  function streakOf(routine) {
+    const day = DT.todayKey();
+    const hit = streakCache.get(routine.id);
+    if (hit && hit.day === day && hit.stamp === routine.updatedAt) return hit.value;
+    const value = State.Routines.streak(routine);
+    streakCache.set(routine.id, { day, stamp: routine.updatedAt, value });
+    return value;
+  }
+
+  function forget() { stepCache = new Map(); }
 
   // ------------------------------------------------------------- momentum
 
@@ -83,7 +109,7 @@
     const overdue = State.Routines.overdue(today);
     const week = State.Routines.adherence(7);
     const best = State.Routines.all()
-      .reduce((max, r) => Math.max(max, State.Routines.streak(r)), 0);
+      .reduce((max, r) => Math.max(max, streakOf(r)), 0);
 
     const circumference = 2 * Math.PI * 22;
     const percent = Math.round(progress.percent);
@@ -124,7 +150,7 @@
   function occupiedIntervals(days) {
     const spans = [];
     for (const date of days) {
-      for (const step of State.Routines.stepsFor(DT.key(date))) {
+      for (const step of stepsOn(DT.key(date))) {
         if (step.startMinutes === null) continue;
         spans.push([step.startMinutes, step.endMinutes]);
       }
@@ -200,7 +226,7 @@
     const bar = document.querySelector('.routine-bar');
     const chrome = (momentum ? momentum.offsetHeight : 0)
       + (bar ? bar.offsetHeight : 0)
-      + 104;                        // day header, legend and the margins between
+      + 112;                        // day header, legend and the margins between
     return Math.max(200, views.clientHeight - chrome);
   }
 
@@ -268,17 +294,20 @@
       (availableBodyHeight() - gapCount * GAP_PX - fitAdjust) / Math.max(1, mins);
     let pxPerMin = Math.max(MIN_PX_PER_MIN, Math.min(MAX_PX_PER_MIN, roomFor(totalMinutes)));
 
-    // Bottomed out on a short window: drop the padding hours around each run
-    // and the legend. That buys back the space before resorting to a
-    // scrollbar, which is the thing this view exists to avoid.
-    const tight = pxPerMin <= MIN_PX_PER_MIN;
-    if (tight) {
+    // Bottomed out on a short window: drop the padding hours around each run.
+    // That buys back the space before resorting to a scrollbar, which is the
+    // thing this view exists to avoid.
+    if (pxPerMin <= MIN_PX_PER_MIN) {
       segments = buildSegments(days, 0);
       totalMinutes = segments.reduce((sum, s) => sum + (s.end - s.start), 0);
       gapCount = Math.max(0, segments.length - 1);
       pxPerMin = Math.max(MIN_PX_PER_MIN, Math.min(MAX_PX_PER_MIN, roomFor(totalMinutes)));
     }
+    // Only if even the unpadded grid is still on the floor is the window short
+    // enough to be worth the dates and the legend as well.
+    const tight = pxPerMin <= MIN_PX_PER_MIN;
     const scale = buildScale(segments, pxPerMin);
+    clockScale = scale;
 
     const today = DT.todayKey();
     const nowMinutes = new Date().getHours() * 60 + new Date().getMinutes();
@@ -286,7 +315,7 @@
 
     const head = days.map(date => {
       const key = DT.key(date);
-      return `<div class="tt-dayhead${key === today ? ' today' : ''}">
+      return `<div class="tt-dayhead${key === today ? ' today' : key < today ? ' past' : ''}">
         <b>${esc(DT.DAY_NAMES[date.getDay()].slice(0, 3))}</b>
         <span>${date.getDate()}</span>
       </div>`;
@@ -311,6 +340,11 @@
       }
     });
 
+    // The clock, printed in the gutter where the now-line crosses it.
+    const nowGutterY = scale.yOf(nowMinutes);
+    const nowChip = nowGutterY === null ? ''
+      : `<span class="tt-nowtime" style="top:${nowGutterY}px">${esc(fmt(nowMinutes))}</span>`;
+
     // Collapsed stretches get a marked band, so skipped hours are visible as a
     // deliberate fold rather than a missing chunk of the day.
     const gaps = scale.rows.filter(r => r.gap).map(row => {
@@ -323,7 +357,7 @@
     const columns = days.map(date => {
       const key = DT.key(date);
       const isToday = key === today;
-      const steps = packColumns(State.Routines.stepsFor(key).filter(s => s.startMinutes !== null));
+      const steps = packColumns(stepsOn(key).filter(s => s.startMinutes !== null));
 
       const blocks = steps.map(step => {
         const top = scale.yOf(step.startMinutes);
@@ -331,7 +365,9 @@
         // Nothing past 24:00 is on the grid, so a step that runs over midnight
         // ends at the foot of the day instead of collapsing to a sliver.
         const bottom = scale.yOf(Math.min(step.endMinutes, 24 * 60));
-        const height = Math.max(10, (bottom === null ? top + 10 : bottom) - top - 1);
+        // Floored low, because a block that has given up its text only has
+        // to be a legible band of colour.
+        const height = Math.max(7, (bottom === null ? top + 7 : bottom) - top - 1.5);
         const width = 100 / step._lanes;
         const left = width * step._lane;
         const cat = State.categoryOf(step.category);
@@ -340,7 +376,8 @@
           && step.startMinutes <= nowMinutes && step.endMinutes > nowMinutes;
 
         const classes = ['tt-block'];
-        if (height < 26) classes.push('tiny');
+        if (height < 9) classes.push('bare');
+        else if (height < 28) classes.push('tiny');
         if (step.done) classes.push('done');
         if (late) classes.push('late');
         if (live) classes.push('live');
@@ -350,37 +387,31 @@
         return `<button class="${classes.join(' ')}"
             style="top:${top}px;height:${height}px;left:${left}%;width:calc(${width}% - 2px);--cat:${cat.color}"
             data-routine="${esc(step.routineId)}" data-step="${esc(step.id)}" data-day="${esc(key)}"
+            data-start="${step.startMinutes}" data-end="${step.endMinutes}"
             title="${esc(step.title)} — ${esc(step.routineName)}&#10;${esc(when)} · ${step.duration} min&#10;${isToday ? 'Click to tick off' : 'Click to open the routine'}">
-          <span class="tt-time">${esc(when)}</span>
           <span class="tt-title">${esc(step.title)}</span>
+          <span class="tt-time">${esc(when)}</span>
         </button>`;
       }).join('');
 
       const nowY = isToday ? scale.yOf(nowMinutes) : null;
       const nowLine = nowY === null ? '' : `<span class="tt-now" style="top:${nowY}px"></span>`;
+      const tone = isToday ? ' today' : key < today ? ' past' : '';
 
-      return `<div class="tt-day${isToday ? ' today' : ''}">${blocks}${nowLine}</div>`;
+      return `<div class="tt-day${tone}">${blocks}${nowLine}</div>`;
     }).join('');
 
     host.innerHTML = `
       <div class="tt-head${tight ? ' slim' : ''}"><div class="tt-corner"></div>${head}</div>
       <div class="tt-body" style="height:${Math.round(scale.height)}px">
         ${lines.join('')}${gaps}
-        <div class="tt-gutter">${labels.join('')}</div>
+        <div class="tt-gutter">${labels.join('')}${nowChip}</div>
         ${columns}
       </div>
       ${tight ? '' : `<div class="tt-legend">
         ${routines.filter(r => r.active).map(r =>
           `<span><i style="background:${State.categoryOf(r.category).color}"></i>${esc(r.name)}</span>`).join('')}
       </div>`}`;
-
-    host.querySelectorAll('.tt-block').forEach(block => {
-      block.addEventListener('click', () => {
-        const { routine, step, day } = block.dataset;
-        if (day === today) tickStep(routine, step, day);
-        else openEditor(State.Routines.byId(routine));
-      });
-    });
 
     // The header, legend and margins can only be measured once they exist, so
     // if the first pass overshoots by a few pixels, take those pixels back and
@@ -395,6 +426,36 @@
         fitting = false;
       }
     }
+  }
+
+  /**
+   * What actually changes when the clock ticks: the now-line creeps down by
+   * half a pixel, and a step or two turns live or late. Rebuilding seven days
+   * of DOM every minute to say that is waste, so move the few things that
+   * moved and leave the rest of the grid alone.
+   */
+  function tickWeek() {
+    const host = $('#routineWeek');
+    if (!host || !clockScale || !host.querySelector('.tt-body')) return false;
+
+    const nowMinutes = new Date().getHours() * 60 + new Date().getMinutes();
+    const y = clockScale.yOf(nowMinutes);
+    if (y === null) return false;    // the clock has walked into a fold: redraw
+
+    host.querySelectorAll('.tt-now, .tt-nowtime').forEach(mark => {
+      mark.style.top = y + 'px';
+    });
+    const chip = host.querySelector('.tt-nowtime');
+    if (chip) chip.textContent = fmt(nowMinutes);
+
+    host.querySelectorAll('.tt-day.today .tt-block').forEach(block => {
+      const start = Number(block.dataset.start);
+      const end = Number(block.dataset.end);
+      const open = !block.classList.contains('done');
+      block.classList.toggle('live', open && start <= nowMinutes && end > nowMinutes);
+      block.classList.toggle('late', open && end < nowMinutes);
+    });
+    return true;
   }
 
   function renderEmpty(host) {
@@ -417,7 +478,7 @@
     const after = State.Routines.progress(dayKey || DT.todayKey());
     if (after.done === after.total && after.total) {
       const routine = State.Routines.byId(routineId);
-      const streak = routine ? State.Routines.streak(routine) : 0;
+      const streak = routine ? streakOf(routine) : 0;
       UI.toast({
         kind: 'success',
         icon: 'flame',
@@ -433,7 +494,7 @@
     const host = container || $('#routineTodayPane');
     if (!host) return;
     const day = dayKey || DT.todayKey();
-    const steps = State.Routines.stepsFor(day);
+    const steps = stepsOn(day);
 
     host.innerHTML = '';
     if (!steps.length) {
@@ -456,7 +517,7 @@
       if (!routine) continue;
       const done = groupSteps.filter(s => s.done).length;
       const cat = State.categoryOf(routine.category);
-      const streak = State.Routines.streak(routine);
+      const streak = streakOf(routine);
 
       const card = el('div', { class: 'day-group' });
       card.innerHTML = `
@@ -515,7 +576,7 @@
     const today = DT.todayKey();
     const runsToday = State.Routines.runsOn(routine, today);
     const done = (routine.completed[today] || []).length;
-    const streak = State.Routines.streak(routine);
+    const streak = streakOf(routine);
     const card = el('div', { class: `routine${routine.active ? '' : ' inactive'}` });
     const cat = State.categoryOf(routine.category);
 
@@ -818,7 +879,7 @@
   // -------------------------------------------------------------- routing
 
   /** Forget the measured correction so the next draw re-fits from scratch. */
-  function resetFit() { fitAdjust = 0; }
+  function resetFit() { fitAdjust = 0; clockScale = null; }
 
   function setMode(next) {
     mode = next;
@@ -833,6 +894,7 @@
     if (!mounted) return;
     if (!State.isActiveTab('routines')) return;
 
+    forget();
     renderMomentum();
     const routines = State.Routines.all();
 
@@ -850,8 +912,9 @@
   function renderToday(container) {
     const host = container || $('#routineToday');
     if (!host) return;
+    forget();
     const today = DT.todayKey();
-    const steps = State.Routines.stepsFor(today);
+    const steps = stepsOn(today);
 
     if (!steps.length) { host.innerHTML = ''; host.hidden = true; return; }
     host.hidden = false;
@@ -867,7 +930,7 @@
       </div>
       <div class="mini-bar" style="margin-bottom:8px"><span style="width:${progress.percent}%"></span></div>
       <p class="routine-nudge">${esc(momentumLine(progress, next, State.Routines.overdue(today),
-        State.Routines.all().reduce((m, r) => Math.max(m, State.Routines.streak(r)), 0)))}</p>`;
+        State.Routines.all().reduce((m, r) => Math.max(m, streakOf(r)), 0)))}</p>`;
 
     const list = el('div', { class: 'routine-check-list' });
     for (const step of steps) {
@@ -901,6 +964,15 @@
 
     $('#routineAdd').addEventListener('click', () => openEditor(null));
     $('#routineTemplates').addEventListener('click', openPresets);
+    // One listener on the grid outlives every redraw of it; the forty it
+    // replaces had to be re-attached to fresh nodes every single minute.
+    $('#routineWeek').addEventListener('click', e => {
+      const block = e.target.closest('.tt-block');
+      if (!block) return;
+      const { routine, step, day } = block.dataset;
+      if (day === DT.todayKey()) tickStep(routine, step, day);
+      else openEditor(State.Routines.byId(routine));
+    });
     $('#routineModeSeg').addEventListener('click', e => {
       const btn = e.target.closest('button[data-mode]');
       if (btn) setMode(btn.dataset.mode);
@@ -917,7 +989,11 @@
     window.addEventListener('resize', UI.debounce(() => { resetFit(); render(); }, 180));
     State.on('tick:minute', () => {
       // The now-line, "in 12 min" and overdue styling all age by the minute.
-      if (State.isActiveTab('routines')) render();
+      if (State.isActiveTab('routines')) {
+        forget();
+        if (mode === 'week' && tickWeek()) renderMomentum();
+        else render();
+      }
       if (State.isActiveTab('today')) renderToday();
     });
 

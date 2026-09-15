@@ -1093,9 +1093,13 @@ mark {
 }
 .mo-ring { position: relative; width: 54px; height: 54px; flex: 0 0 auto; }
 .mo-ring svg { transform: rotate(-90deg); }
-.mo-ring circle { fill: none; stroke-width: 5; stroke-linecap: round; }
+.mo-ring circle { fill: none; stroke-width: 5.5; stroke-linecap: round; }
 .mo-ring .bg { stroke: var(--surface-3); }
-.mo-ring .fg { stroke: var(--accent); transition: stroke-dashoffset var(--spring); }
+.mo-ring .fg {
+  stroke: var(--accent);
+  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--accent) 55%, transparent));
+  transition: stroke-dashoffset var(--spring);
+}
 .mo-ring span {
   position: absolute; inset: 0; display: grid; place-items: center;
   font-size: 12.5px; font-weight: 700; font-variant-numeric: tabular-nums;
@@ -1103,44 +1107,64 @@ mark {
 .mo-copy { flex: 1; min-width: 0; }
 .mo-copy b { display: block; font-size: 13px; font-weight: 600; }
 .mo-copy p { font-size: 11.5px; color: var(--ink-2); margin-top: 3px; line-height: 1.45; }
-.mo-stats { display: flex; flex-direction: column; gap: 5px; flex: 0 0 auto; text-align: right; }
+.mo-stats { display: flex; flex-direction: column; gap: 4px; flex: 0 0 auto; text-align: right; }
 .mo-stat {
   display: inline-flex; align-items: center; justify-content: flex-end; gap: 4px;
+  padding: 3px 8px; border-radius: 99px;
+  border: 1px solid transparent;
   font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums;
   color: var(--ink-2);
 }
-.mo-stat.hot { color: var(--prio-high); }
+.mo-stat.hot {
+  color: var(--prio-high);
+  background: color-mix(in srgb, var(--prio-high) 13%, transparent);
+  border-color: color-mix(in srgb, var(--prio-high) 28%, transparent);
+}
 .mo-stat small {
   font-size: 9px; font-weight: 500; color: var(--ink-4);
   text-transform: uppercase; letter-spacing: .05em; margin-left: 2px;
 }
 
 /* the timetable ---------------------------------------------------------- */
-.timetable { margin-top: 4px; }
+/* One custom property sets the gutter, because the hour lines and both grids
+   have to agree on where the days start. */
+.timetable { --tt-gutter: 40px; margin-top: 4px; }
 
 .tt-head {
   display: grid;
-  grid-template-columns: 38px repeat(7, minmax(0, 1fr));
-  position: sticky; top: 0; z-index: 2;
+  grid-template-columns: var(--tt-gutter) repeat(7, minmax(0, 1fr));
+  position: sticky; top: 0; z-index: 7;
   background: var(--surface-0);
   backdrop-filter: blur(8px);
   padding-bottom: 4px;
 }
 .tt-dayhead {
-  text-align: center; padding: 3px 0;
-  border-radius: var(--radius-sm);
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 1px 0;
 }
 .tt-dayhead b {
-  display: block; font-size: 9.5px; font-weight: 600;
-  text-transform: uppercase; letter-spacing: .05em; color: var(--ink-4);
+  font-size: 9px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: .07em; color: var(--ink-4);
 }
-.tt-dayhead span { font-size: 12px; font-variant-numeric: tabular-nums; color: var(--ink-2); }
-.tt-dayhead.today { background: var(--accent-soft); }
-.tt-dayhead.today b, .tt-dayhead.today span { color: var(--accent); font-weight: 700; }
+/* The date gets its own pill, so today is marked the way a calendar marks it
+   rather than by shading the whole header. */
+.tt-dayhead span {
+  display: grid; place-items: center;
+  min-width: 18px; height: 18px; padding: 0 5px;
+  border-radius: 99px;
+  font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums;
+  color: var(--ink-2);
+}
+.tt-dayhead.today b { color: var(--accent); }
+.tt-dayhead.today span {
+  background: var(--accent); color: var(--accent-ink); font-weight: 700;
+  box-shadow: 0 2px 9px color-mix(in srgb, var(--accent) 45%, transparent);
+}
+.tt-dayhead.past b, .tt-dayhead.past span { opacity: .5; }
 
 .tt-body {
   display: grid;
-  grid-template-columns: 38px repeat(7, minmax(0, 1fr));
+  grid-template-columns: var(--tt-gutter) repeat(7, minmax(0, 1fr));
   position: relative;
   border-top: 1px solid var(--stroke);
   /* The first hour label is centred on the top edge, so give it room to sit
@@ -1149,64 +1173,113 @@ mark {
 }
 .tt-gutter { position: relative; }
 .tt-hour {
-  position: absolute; right: 5px; transform: translateY(-50%);
-  font-size: 9px; color: var(--ink-4);
+  position: absolute; right: 6px; transform: translateY(-50%);
+  font-size: 9px; font-weight: 500; color: var(--ink-4);
   font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+/* The clock itself, where the now-line meets the gutter — the one label on
+   this grid worth reading to the minute. */
+.tt-nowtime {
+  position: absolute; right: 3px; transform: translateY(-50%);
+  z-index: 8;
+  padding: 1px 5px; border-radius: 99px;
+  font-size: 8.5px; font-weight: 700; font-variant-numeric: tabular-nums;
+  color: #fff; background: var(--prio-critical);
+  box-shadow: 0 2px 7px color-mix(in srgb, var(--prio-critical) 50%, transparent);
 }
 .tt-day {
   position: relative;
   border-left: 1px solid var(--stroke);
 }
-.tt-day.today { background-color: color-mix(in srgb, var(--accent) 7%, transparent); }
+/* Today is a lit column between two accent edges; the days already spent sink
+   back, so the eye lands on the one that can still be acted on. */
+.tt-day.today {
+  background: linear-gradient(180deg,
+    color-mix(in srgb, var(--accent) 12%, transparent),
+    color-mix(in srgb, var(--accent) 4%, transparent));
+  box-shadow: inset 1px 0 0 var(--accent-line), inset -1px 0 0 var(--accent-line);
+}
+.tt-day.past { background: color-mix(in srgb, var(--ink) 4%, transparent); }
 
 .tt-block {
   position: absolute;
   z-index: 2;
-  display: flex; flex-direction: column; justify-content: flex-start;
+  display: flex; flex-direction: column; justify-content: center; gap: 1px;
   overflow: hidden;
-  padding: 2px 4px;
+  padding: 2px 5px;
+  border: 0;
   border-radius: 5px;
-  border-left: 2.5px solid var(--cat, var(--accent));
-  background: color-mix(in srgb, var(--cat, var(--accent)) 22%, transparent);
+  border-left: 3px solid var(--cat, var(--accent));
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, .08), rgba(255, 255, 255, 0)),
+    color-mix(in srgb, var(--cat, var(--accent)) 26%, transparent);
   color: var(--ink);
   text-align: left;
-  transition: filter var(--fast), transform var(--fast);
+  /* A hairline of the page colour underneath: a ten-minute step is drawn at a
+     minimum height it has not earned, and without this it bleeds straight into
+     whatever comes next. */
+  box-shadow: 0 0 0 1px var(--surface-0);
+  transition: filter var(--fast), box-shadow var(--fast);
 }
-.tt-block:hover { filter: brightness(1.25); transform: scale(1.02); z-index: 3; }
-.tt-time {
-  font-size: 8.5px; font-weight: 600; color: var(--ink-2);
-  font-variant-numeric: tabular-nums; line-height: 1.2;
+.tt-block:hover {
+  filter: brightness(1.2);
+  box-shadow: 0 0 0 1px var(--surface-0), 0 5px 14px rgba(0, 0, 0, .3);
+  z-index: 5;
 }
+.tt-block:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; z-index: 6; }
+/* The title carries the block. Its place on the grid already says the time, so
+   the clock is the quieter line, and the first thing dropped when short. */
 .tt-title {
-  font-size: 10px; line-height: 1.2;
+  font-size: 10px; font-weight: 500; line-height: 1.15;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.tt-block.done { opacity: .42; }
+.tt-time {
+  font-size: 8.5px; font-weight: 600; color: var(--ink-3);
+  font-variant-numeric: tabular-nums; line-height: 1.1;
+}
+.tt-block.done { opacity: .4; }
 .tt-block.done .tt-title { text-decoration: line-through; }
-.tt-block.past { opacity: .5; }
+.tt-block.past { opacity: .5; filter: saturate(.55); }
 .tt-block.late {
   border-left-color: var(--prio-critical);
-  background: color-mix(in srgb, var(--prio-critical) 20%, transparent);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, .07), rgba(255, 255, 255, 0)),
+    color-mix(in srgb, var(--prio-critical) 22%, transparent);
 }
+/* Whatever is running right now: ringed and lifted, but not animated. This
+   sits on screen all day, and a pulse that never stops is a repaint that never
+   stops either. */
 .tt-block.live {
-  outline: 1.5px solid var(--accent);
-  animation: pulse-ring 2.2s ease-out infinite;
+  z-index: 4;
+  border-left-color: var(--accent);
+  box-shadow:
+    0 0 0 1px var(--surface-0),
+    0 0 0 1.5px var(--accent),
+    0 3px 14px color-mix(in srgb, var(--accent) 38%, transparent);
 }
 .tt-now {
-  position: absolute; left: 0; right: 0; height: 1.5px;
-  background: var(--prio-critical); z-index: 4; pointer-events: none;
+  position: absolute; left: 0; right: 0; height: 2px;
+  border-radius: 2px;
+  background: var(--prio-critical);
+  box-shadow: 0 0 9px color-mix(in srgb, var(--prio-critical) 65%, transparent);
+  z-index: 6; pointer-events: none;
 }
 .tt-now::before {
   content: ""; position: absolute; left: -3px; top: -2.5px;
-  width: 6px; height: 6px; border-radius: 50%; background: var(--prio-critical);
+  width: 7px; height: 7px; border-radius: 50%; background: var(--prio-critical);
+  box-shadow: 0 0 0 2px var(--surface-0);
 }
 
 .tt-legend {
-  display: flex; flex-wrap: wrap; gap: 4px 12px;
-  margin-top: 10px; font-size: 10.5px; color: var(--ink-3);
+  display: flex; flex-wrap: wrap; gap: 5px;
+  margin-top: 11px; font-size: 10.5px; color: var(--ink-2);
 }
-.tt-legend span { display: inline-flex; align-items: center; gap: 5px; }
-.tt-legend i { width: 8px; height: 8px; border-radius: 3px; }
+.tt-legend span {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 3px 9px 3px 7px; border-radius: 99px;
+  background: var(--surface-1); border: 1px solid var(--stroke);
+}
+.tt-legend i { width: 7px; height: 7px; border-radius: 50%; flex: 0 0 auto; }
 
 /* today pane ------------------------------------------------------------- */
 .routine-day { display: flex; flex-direction: column; gap: 8px; }
@@ -1288,16 +1361,22 @@ body[data-notefocus="true"] #noteFocus { color: var(--accent); background: var(-
 .consistency-bars .cb.off { opacity: .35; }
 .consistency-bars .cb.off i { background: var(--ink-4); }
 
+/* Below about fifteen pixels no word survives the clipping, so the block
+   keeps its colour and gives up its text rather than printing three letters of
+   it over its neighbour. The tooltip and the Today list still have the words. */
+.tt-block.bare { padding: 0; }
+.tt-block.bare .tt-title, .tt-block.bare .tt-time { display: none; }
+
 /* A short block has room for one line only — keep the words, drop the clock. */
-.tt-block.tiny { padding: 1px 4px; justify-content: center; }
+.tt-block.tiny { padding: 0 4px; justify-content: center; }
 .tt-block.tiny .tt-time { display: none; }
-.tt-block.tiny .tt-title { font-size: 9px; }
+.tt-block.tiny .tt-title { font-size: 8.5px; line-height: 1; }
 
 /* --------------------------------------------- timetable: fit to one page */
 /* Hour lines span the whole grid so they stay aligned across the collapsed
    stretches, where a per-column background gradient no longer could. */
 .tt-line {
-  position: absolute; left: 38px; right: 0;
+  position: absolute; left: var(--tt-gutter); right: 0;
   height: 1px; background: var(--stroke);
   pointer-events: none;
 }
@@ -1307,24 +1386,26 @@ body[data-notefocus="true"] #noteFocus { color: var(--accent); background: var(-
 .tt-gap {
   position: absolute; left: 0; right: 0;
   display: flex; align-items: center; justify-content: center;
-  pointer-events: none;
+  pointer-events: none; z-index: 1;
   background: repeating-linear-gradient(
     -45deg,
-    var(--surface-1) 0 6px,
-    transparent 6px 12px);
+    color-mix(in srgb, var(--ink) 5%, transparent) 0 5px,
+    transparent 5px 10px);
   border-top: 1px dashed var(--stroke);
   border-bottom: 1px dashed var(--stroke);
 }
 .tt-gap i {
-  font-style: normal; font-size: 8.5px; letter-spacing: .04em;
+  font-style: normal; font-size: 8px; font-weight: 600; letter-spacing: .06em;
   color: var(--ink-4); text-transform: uppercase;
-  background: var(--surface-0); padding: 0 6px; border-radius: 99px;
+  background: var(--surface-0); padding: 1px 7px; border-radius: 99px;
+  border: 1px solid var(--stroke);
 }
 
-/* At a tight scale the blocks need less padding and a smaller hit of type. */
-.tt-block { padding: 1px 4px; }
-.tt-title { font-size: 9.5px; }
-.tt-time { font-size: 8px; }
+/* At a tight scale the blocks lose a little padding and type. The header is
+   the only thing marked as tight, and the body is always its next sibling. */
+.tt-head.slim + .tt-body .tt-block { padding: 0 4px; }
+.tt-head.slim + .tt-body .tt-title { font-size: 9px; }
+.tt-head.slim + .tt-body .tt-time { font-size: 8px; }
 
 .preset-card small {
   display: block; font-size: 11px; color: var(--ink-2);
