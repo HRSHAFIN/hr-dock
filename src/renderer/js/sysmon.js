@@ -14,7 +14,12 @@
   const { $, esc } = UI;
 
   const HISTORY = 60;
-  const series = { cpu: [], mem: [], gpu: [], vram: [], down: [], up: [], read: [], write: [] };
+  const series = { cpu: [], mem: [], gpu: [], vram: [], down: [], up: [], read: [], write: [], power: [] };
+
+  // The processor's ceiling is not published anywhere, so the ring calibrates
+  // itself against the highest package draw seen this session. Floored so an
+  // idle machine does not start out looking maxed.
+  let cpuPeakWatts = 120;
 
   let latest = null;
   let inventory = null;
@@ -98,7 +103,7 @@
 
   // ------------------------------------------------------------ the gauges
 
-  function gauge(label, percent, caption, iconName) {
+  function gauge(label, percent, caption, iconName, display) {
     const value = Math.max(0, Math.min(100, percent || 0));
     const circumference = 2 * Math.PI * 19;
     return `
@@ -111,7 +116,7 @@
                     stroke-dasharray="${circumference}"
                     stroke-dashoffset="${circumference * (1 - value / 100)}"></circle>
           </svg>
-          <span>${Math.round(value)}</span>
+          <span>${display === undefined ? Math.round(value) : esc(display)}</span>
         </div>
         <div class="gauge-copy">
           <b>${Icons.icon(iconName, 12)} ${esc(label)}</b>
@@ -135,11 +140,47 @@
       tiles.push(gauge('GPU', g.util,
         typeof g.temp === 'number' ? `${Math.round(g.temp)}°C` : 'usage', 'gpu'));
     }
+    const power = systemPower(sample);
+    if (power.total !== null) {
+      // Against everything the machine could pull: the card's own limit, the
+      // hardest the processor has worked this session, and the allowance.
+      const ceiling = (sample.power.gpuLimit || 200) + cpuPeakWatts + power.platform;
+      tiles.push(gauge('Power', (power.total / ceiling) * 100,
+        power.sources.length === 2 ? 'CPU + GPU measured' : 'partly measured',
+        'activity', `${Math.round(power.total)}W`));
+    }
+
     if (sample.battery !== null) {
       tiles.push(gauge('Battery', sample.battery,
         sample.charging ? 'Charging' : 'On battery', 'battery'));
     }
     host.innerHTML = tiles.join('');
+  }
+
+  /**
+   * What the machine is drawing, measured where it can be and declared where
+   * it cannot. The processor reports its package power through RAPL and the
+   * graphics card reports its board power through the driver; the board,
+   * memory, drives and fans report nothing at all on a desktop, so they are an
+   * allowance the user sets. The parts are kept separate so the panel can say
+   * which figure came from a sensor.
+   */
+  function systemPower(sample) {
+    const power = sample.power || {};
+    const platform = Number(State.settings().platformWatts);
+    const allowance = Number.isFinite(platform) ? platform : 45;
+
+    if (typeof power.cpu === 'number' && power.cpu > cpuPeakWatts) cpuPeakWatts = power.cpu;
+
+    const sources = power.sources || [];
+    return {
+      cpu: typeof power.cpu === 'number' ? power.cpu : null,
+      gpu: typeof power.gpu === 'number' ? power.gpu : null,
+      platform: allowance,
+      measured: power.measured || 0,
+      total: sources.length ? (power.measured || 0) + allowance : null,
+      sources
+    };
   }
 
   // ------------------------------------------------------------ build once
@@ -251,6 +292,22 @@
           </div>`).join('')}
         </div>` : ''}
         <div class="meters" data-ref="diskMeters"></div>
+      </div>
+
+      <!-- -------------------------------------------------------- power -->
+      <div class="card sys-card">
+        <div class="card-head">
+          <h3>${Icons.icon('activity', 13)} Power draw</h3>
+          <span class="pill" data-ref="powerPill">—</span>
+        </div>
+        <div class="spark" data-ref="powerSpark">${sparkSvg(['power'])}</div>
+        <dl class="kv sys-kv">
+          ${row('Processor package', 'powerCpu')}
+          ${row('Graphics card', 'powerGpu')}
+          ${row('Rest of the system', 'powerRest')}
+          ${row('System total', 'powerTotal')}
+        </dl>
+        <div class="sys-note" data-ref="powerNote"></div>
       </div>
 
       <!-- ------------------------------------------------------ cooling -->
@@ -414,6 +471,31 @@
         fill.style.background = ringColor(disk.percent);
         setText(node.querySelector('.m-val'), `${UI.formatBytes(disk.free)} free`);
       });
+    }
+
+    // --- power
+    const power = systemPower(sample);
+    if (power.total === null) {
+      setText(refs.powerPill, 'not reported');
+      setText(refs.powerNote,
+        'Neither the processor nor the graphics card on this machine reports what '
+        + 'it is drawing, and a desktop power supply tells the operating system '
+        + 'nothing, so there is no figure to give.');
+    } else {
+      push('power', power.measured);
+      setText(refs.powerPill, `${Math.round(power.total)} W`);
+      setText(refs.powerCpu, power.cpu === null ? 'Not reported' : `${power.cpu.toFixed(1)} W`);
+      setText(refs.powerGpu, power.gpu === null ? 'Not reported' : `${power.gpu.toFixed(1)} W`);
+      setText(refs.powerRest, `${Math.round(power.platform)} W allowance`);
+      setText(refs.powerTotal, `${Math.round(power.total)} W`);
+      drawSpark(refs.powerSpark.querySelector('svg'),
+        [{ cls: 'power', data: series.power }], 60);
+      setText(refs.powerNote,
+        `The processor figure is its own energy meter and the graphics figure comes `
+        + `from the driver — both are real readings. The rest is a flat ${Math.round(power.platform)} W `
+        + `allowance for the board, memory, drives and fans, which nothing on a desktop `
+        + `measures; set it to suit your machine in Settings. Wall draw will be higher `
+        + `again by whatever the power supply wastes.`);
     }
 
     // --- cooling

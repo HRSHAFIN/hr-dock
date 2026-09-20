@@ -316,6 +316,7 @@ suite('data store defaults', t => {
   t.check('the workouts tab ships switched on', DEFAULTS.settings.modules.workouts === true);
   t.equal('load is recorded in kilograms by default', DEFAULTS.settings.weightUnit, 'kg');
   t.check('speed tests get their own collection', Array.isArray(DEFAULTS.speedtests));
+  t.equal('the platform power allowance has a default', DEFAULTS.settings.platformWatts, 45);
 });
 
 // --------------------------------------------------------- speed test maths

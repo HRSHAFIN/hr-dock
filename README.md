@@ -179,6 +179,14 @@ seconds at a time so the panel does not rebuild itself under your cursor.
   it is the one shown, and the others are named underneath.
 - **Storage** — every physical drive with its model, bus, media type and SMART
   health, each volume's free space, and live read/write throughput.
+- **Power draw** — what the machine is pulling, in the tile row beside CPU,
+  memory and graphics. The processor reports its package power through its own
+  energy meter (RAPL, via the Energy Meter counter set) and the graphics card
+  reports board power through the driver — both are real readings, broken out
+  separately in the panel. The board, memory, drives and fans report nothing at
+  all on a desktop, so they are a flat allowance you set in **Settings → Other
+  system power** (45 W by default). Wall draw is higher again by whatever the
+  power supply wastes.
 - **Cooling** — every fan that will say. In practice that means the GPU;
   see the limitation below.
 - **Network** — download and upload in MB/s with a live graph, lifetime bytes

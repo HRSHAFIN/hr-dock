@@ -167,6 +167,18 @@
         select([{ id: '1', label: 'Monday' }, { id: '0', label: 'Sunday' }, { id: '6', label: 'Saturday' }],
           String(s.firstDayOfWeek), v => patch({ firstDayOfWeek: Number(v) }))),
 
+      row('Other system power', 'Watts for board, memory, drives and fans — added to the measured '
+        + 'processor and graphics draw. Nothing on a desktop reports this, so it is an allowance.',
+        (() => {
+          const input = el('input', {
+            type: 'number', min: '0', max: '400', step: '5',
+            value: String(s.platformWatts === undefined ? 45 : s.platformWatts),
+            style: { width: '72px', textAlign: 'right' }
+          });
+          input.addEventListener('change', () => patch({ platformWatts: Math.max(0, Number(input.value) || 0) }));
+          return input;
+        })()),
+
       row('Workout load', 'The unit written against every exercise.',
         segmented([{ id: 'kg', label: 'kg' }, { id: 'lb', label: 'lb' }],
           s.weightUnit === 'lb' ? 'lb' : 'kg', v => patch({ weightUnit: v })))

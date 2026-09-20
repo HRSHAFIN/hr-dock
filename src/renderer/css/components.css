@@ -904,6 +904,10 @@ body.ready { opacity: 1; }
 .spark-svg polyline { fill: none; stroke-width: 1.5; vector-effect: non-scaling-stroke; }
 .spark-svg path { stroke: none; }
 .cpu-line, .down-line, .read-line, .gpu-line { stroke: var(--cat-meeting); }
+.power-line { stroke: var(--prio-high); }
+/* No fill under this one. Draw never falls near zero, so a shaded area against
+   a zero-based axis is a solid block rather than a shape worth reading. */
+.power-area { fill: none; }
 .mem-line, .up-line, .write-line, .vram-line { stroke: var(--cat-personal); }
 .cpu-area, .down-area, .read-area, .gpu-area {
   fill: color-mix(in srgb, var(--cat-meeting) 20%, transparent);

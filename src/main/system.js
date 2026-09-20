@@ -149,6 +149,23 @@ const PS_LOOP = `
 $ErrorActionPreference = 'SilentlyContinue'
 $maxMhz = (Get-CimInstance Win32_Processor | Select-Object -First 1).MaxClockSpeed
 $nv = [bool](Get-Command nvidia-smi -ErrorAction SilentlyContinue)
+
+$paths = @(
+  '\\PhysicalDisk(_Total)\\Disk Read Bytes/sec',
+  '\\PhysicalDisk(_Total)\\Disk Write Bytes/sec',
+  '\\Processor Information(_Total)\\% Processor Performance'
+)
+
+# The processor's own energy meter. RAPL is published through this counter set
+# on both AMD and Intel parts, and it is the only reading of CPU package power
+# an unprivileged program can get. The package instance is named for the socket
+# rather than fixed, so resolve it once instead of guessing at the string.
+try {
+  $rapl = (Get-Counter -ListSet 'Energy Meter').PathsWithInstances |
+    Where-Object { $_ -like '*pkg*' -and $_ -like '*\\Power' } | Select-Object -First 1
+  if ($rapl) { $paths += $rapl }
+} catch {}
+
 $i = 0
 while ($true) {
   $out = @{}
@@ -159,17 +176,25 @@ while ($true) {
     $out.tx = [double](($net | Measure-Object -Property SentBytes -Sum).Sum)
   } catch {}
 
-  # One Get-Counter call for all three: three separate calls cost a second each.
+  # One Get-Counter call for all of them: separate calls cost a second each.
+  # Samples are matched by path rather than by position, so the optional RAPL
+  # counter cannot shift the others out from under their readings.
   try {
-    $c = (Get-Counter -Counter '\\PhysicalDisk(_Total)\\Disk Read Bytes/sec','\\PhysicalDisk(_Total)\\Disk Write Bytes/sec','\\Processor Information(_Total)\\% Processor Performance' -MaxSamples 1).CounterSamples
-    $out.diskRead = [double]$c[0].CookedValue
-    $out.diskWrite = [double]$c[1].CookedValue
-    if ($maxMhz -and $c[2].CookedValue -gt 0) { $out.cpuMhz = [int]($maxMhz * $c[2].CookedValue / 100) }
+    $c = (Get-Counter -Counter $paths -MaxSamples 1).CounterSamples
+    foreach ($s in $c) {
+      $p = [string]$s.Path
+      if ($p -like '*disk read*') { $out.diskRead = [double]$s.CookedValue }
+      elseif ($p -like '*disk write*') { $out.diskWrite = [double]$s.CookedValue }
+      elseif ($p -like '*processor performance*') {
+        if ($maxMhz -and $s.CookedValue -gt 0) { $out.cpuMhz = [int]($maxMhz * $s.CookedValue / 100) }
+      }
+      elseif ($p -like '*energy meter*') { $out.cpuWatts = [double]$s.CookedValue / 1000 }
+    }
   } catch {}
 
   if ($nv) {
     try {
-      $raw = (nvidia-smi --query-gpu=utilization.gpu,temperature.gpu,clocks.current.graphics,clocks.current.memory,memory.used,memory.total,fan.speed,power.draw --format=csv,noheader,nounits | Select-Object -First 1)
+      $raw = (nvidia-smi --query-gpu=utilization.gpu,temperature.gpu,clocks.current.graphics,clocks.current.memory,memory.used,memory.total,fan.speed,power.draw,power.limit --format=csv,noheader,nounits | Select-Object -First 1)
       if ($raw) {
         $g = $raw -split ','
         $num = { param($v) $t = $v.Trim(); if ($t -match '^[0-9.]+$') { [double]$t } else { $null } }
@@ -178,6 +203,7 @@ while ($true) {
           clock = & $num $g[2]; memClock = & $num $g[3]
           memUsed = & $num $g[4]; memTotal = & $num $g[5]
           fan = & $num $g[6]; power = & $num $g[7]
+          powerLimit = & $num $g[8]
           source = 'nvidia-smi'
         }
       }
@@ -286,7 +312,24 @@ class SystemMonitor extends EventEmitter {
 
     const gpu = this.extra.gpu || null;
 
+    // What the machine is drawing. The two parts that swing — the processor
+    // package and the graphics card — report themselves; nothing on a desktop
+    // reports the rest, so the board, memory, drives and fans are carried as a
+    // flat allowance the user can correct. Measured and assumed are kept apart
+    // here rather than added into one figure that hides which is which.
+    const cpuWatts = typeof this.extra.cpuWatts === 'number' && this.extra.cpuWatts > 0
+      ? this.extra.cpuWatts : null;
+    const gpuWatts = gpu && typeof gpu.power === 'number' ? gpu.power : null;
+    const power = {
+      cpu: cpuWatts,
+      gpu: gpuWatts,
+      gpuLimit: gpu && typeof gpu.powerLimit === 'number' ? gpu.powerLimit : null,
+      measured: (cpuWatts || 0) + (gpuWatts || 0),
+      sources: [cpuWatts !== null && 'cpu', gpuWatts !== null && 'gpu'].filter(Boolean)
+    };
+
     return {
+      power,
       cpu: this.sampleCpu(),
       cores: os.cpus().length,
       coreLoad: this.sampleCores(),
@@ -375,7 +418,7 @@ class SystemMonitor extends EventEmitter {
   }
 
   ingest(payload) {
-    for (const key of ['disks', 'battery', 'batteryStatus', 'temp', 'cpuMhz', 'diskRead', 'diskWrite', 'gpu', 'fans']) {
+    for (const key of ['disks', 'battery', 'batteryStatus', 'temp', 'cpuMhz', 'cpuWatts', 'diskRead', 'diskWrite', 'gpu', 'fans']) {
       if (payload[key] !== undefined) this.extra[key] = payload[key];
     }
 

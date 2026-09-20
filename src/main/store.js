@@ -19,6 +19,11 @@ const DEFAULTS = {
     accent: '#5b8cff',
     timeFormat: 24,                // 12 | 24
     weightUnit: 'kg',              // kg | lb  (workout loads)
+    // Board, memory, drives and fans draw power that nothing on a desktop
+    // reports. This allowance is added to the measured processor and graphics
+    // figures to reach a system total; it is the one number in that sum the
+    // user has to supply.
+    platformWatts: 45,
     showSeconds: true,
     firstDayOfWeek: 1,             // 0 = Sunday, 1 = Monday
     opacity: 1,
