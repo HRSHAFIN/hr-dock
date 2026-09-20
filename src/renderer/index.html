@@ -70,6 +70,7 @@
     <button class="tab" data-tab="calendar" role="tab" title="Calendar"><span class="tab-icon"></span><span class="tab-label">Calendar</span></button>
     <button class="tab" data-tab="tasks"    role="tab" title="Tasks"><span class="tab-icon"></span><span class="tab-label">Tasks</span></button>
     <button class="tab" data-tab="notes"    role="tab" title="Notes"><span class="tab-icon"></span><span class="tab-label">Notes</span></button>
+    <button class="tab" data-tab="workouts" role="tab" title="Workouts"><span class="tab-icon"></span><span class="tab-label">Workouts</span></button>
     <button class="tab" data-tab="stats"    role="tab" title="Insights"><span class="tab-icon"></span><span class="tab-label">Insights</span></button>
     <button class="tab" data-tab="system"   role="tab" title="System"><span class="tab-icon"></span><span class="tab-label">System</span></button>
     <button class="tab" data-tab="settings" role="tab" title="Settings"><span class="tab-icon"></span><span class="tab-label">Settings</span></button>
@@ -173,6 +174,16 @@
       <div class="notes-grid" id="notesGrid"></div>
     </section>
 
+    <!-- WORKOUTS -->
+    <section class="view" data-view="workouts">
+      <div class="card workout-summary" id="workoutSummary"></div>
+      <div class="workout-bar">
+        <h3>Sessions</h3>
+        <button class="primary-btn" id="workoutAdd">+ Log workout</button>
+      </div>
+      <div class="workout-list" id="workoutList"></div>
+    </section>
+
     <!-- INSIGHTS -->
     <section class="view" data-view="stats">
       <div class="stat-grid" id="statGrid"></div>
@@ -268,6 +279,7 @@
 <script src="js/tasks.js"></script>
 <script src="js/routines.js"></script>
 <script src="js/notes.js"></script>
+<script src="js/workouts.js"></script>
 <script src="js/stats.js"></script>
 <script src="js/sysmon.js"></script>
 <script src="js/notify.js"></script>

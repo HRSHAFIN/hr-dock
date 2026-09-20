@@ -18,6 +18,7 @@ const DEFAULTS = {
     theme: 'auto',                 // dark | light | auto
     accent: '#5b8cff',
     timeFormat: 24,                // 12 | 24
+    weightUnit: 'kg',              // kg | lb  (workout loads)
     showSeconds: true,
     firstDayOfWeek: 1,             // 0 = Sunday, 1 = Monday
     opacity: 1,
@@ -47,12 +48,16 @@ const DEFAULTS = {
       routineNudgeMinutes: 10
     },
     system: { enabled: true },
-    modules: { weather: true, schedule: true, todos: true, notes: true, system: true }
+    modules: {
+      weather: true, schedule: true, todos: true, notes: true, system: true,
+      workouts: true               // the Workouts tab; hidden when off
+    }
   },
   bounds: null,                    // { x, y, width, height } of the expanded widget
   compactBounds: null,
   events: [],
   routines: [],
+  workouts: [],
   todos: [],
   notes: [],
   stats: {

@@ -8,8 +8,11 @@
 
   const TAB_ICONS = {
     routines: 'routine', today: 'home', calendar: 'calendar', tasks: 'tasks',
-    notes: 'note', stats: 'chart', system: 'cpu', settings: 'settings'
+    notes: 'note', workouts: 'dumbbell', stats: 'chart', system: 'cpu',
+    settings: 'settings'
   };
+  // Tabs that only exist while their module is switched on.
+  const OPTIONAL_TABS = { workouts: 'workouts' };
   const TAB_ORDER = Object.keys(TAB_ICONS);
 
   let currentTab = 'today';
@@ -27,8 +30,31 @@
     indicator.style.transform = `translateX(${active.offsetLeft + (active.offsetWidth - width) / 2}px)`;
   }
 
+  /**
+    * Hide the tabs whose module is switched off. A hidden tab is not just
+    * unreachable by click — a remembered lastTab would otherwise reopen it,
+    * and the indicator would sit under a button nobody can see.
+    */
+  function applyModules() {
+    const modules = State.settings().modules || {};
+    let banished = false;
+    for (const [tab, key] of Object.entries(OPTIONAL_TABS)) {
+      const off = modules[key] === false;
+      const btn = $(`.tab[data-tab="${tab}"]`);
+      if (btn) btn.hidden = off;
+      if (off && currentTab === tab) banished = true;
+    }
+    if (banished) setTab('today');
+    else moveIndicator();
+  }
+
+  function tabAllowed(tab) {
+    const key = OPTIONAL_TABS[tab];
+    return !key || (State.settings().modules || {})[key] !== false;
+  }
+
   function setTab(tab) {
-    if (!TAB_ICONS[tab]) tab = 'today';
+    if (!TAB_ICONS[tab] || !tabAllowed(tab)) tab = 'today';
     currentTab = tab;
     document.body.dataset.tab = tab;
 
@@ -42,6 +68,7 @@
     if (tab === 'tasks') Tasks.render();
     if (tab === 'routines') Routines.render();
     if (tab === 'notes') Notes.render();
+    if (tab === 'workouts') WorkoutUI.render();
     if (tab === 'stats') Stats.render();
     if (tab === 'settings') Settings.render();
 
@@ -431,6 +458,7 @@
     Tasks.init();
     Routines.init();
     Notes.init();
+    WorkoutUI.init();
     Stats.init();
     SysMon.init();
     Settings.init();
@@ -440,6 +468,7 @@
     wireResize();
     wireKeyboard();
     syncChrome();
+    applyModules();
 
     setTab(State.settings().lastTab || 'today');
     renderCompact();
@@ -449,7 +478,12 @@
     State.on('events', () => { if (currentTab === 'today') renderToday(); renderCompact(); });
     State.on('todos', () => { if (currentTab === 'today') renderToday(); renderCompact(); });
     State.on('stats', renderCompact);
-    State.on('settings', () => { syncChrome(); if (currentTab === 'today') renderToday(); renderCompact(); });
+    State.on('settings', () => {
+      syncChrome();
+      applyModules();
+      if (currentTab === 'today') renderToday();
+      renderCompact();
+    });
     State.on('tick:minute', () => { if (currentTab === 'today') renderToday(); renderCompact(); });
     State.on('tick:day', () => { renderToday(); renderCompact(); });
 

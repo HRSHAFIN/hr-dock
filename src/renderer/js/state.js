@@ -435,6 +435,59 @@
       return !wasDone;
     },
 
+    /**
+     * The day measured in time rather than ticks, split by the kind of work.
+     *
+     * A four-step morning routine and a four-hour study block are not the same
+     * amount of day, and counting both as "4 steps" said that they were. What
+     * a day is actually worth is the time put into it, and which kind of work
+     * that time went to.
+     */
+    effort(dayKey) {
+      const steps = Routines.stepsFor(dayKey || DT.todayKey());
+      const kinds = new Map();
+      let done = 0;
+      let total = 0;
+      for (const step of steps) {
+        const minutes = Math.max(0, Number(step.duration) || 0);
+        total += minutes;
+        if (step.done) done += minutes;
+        const kind = kinds.get(step.category)
+          || { id: step.category, done: 0, total: 0, steps: 0 };
+        kind.total += minutes;
+        kind.steps++;
+        if (step.done) kind.done += minutes;
+        kinds.set(step.category, kind);
+      }
+      return {
+        done,
+        total,
+        percent: total ? (done / total) * 100 : 0,
+        kinds: [...kinds.values()].sort((a, b) => b.total - a.total)
+      };
+    },
+
+    /** The same measure across a window, ignoring days with nothing on. */
+    effortOver(days) {
+      const span = days || 7;
+      let done = 0;
+      let total = 0;
+      let active = 0;
+      for (let i = span - 1; i >= 0; i--) {
+        const day = Routines.effort(DT.key(DT.addDays(new Date(), -i)));
+        if (!day.total) continue;
+        active++;
+        done += day.done;
+        total += day.total;
+      }
+      return {
+        done,
+        total,
+        days: active,
+        percent: total ? Math.round((done / total) * 100) : null
+      };
+    },
+
     /** How much of a day's routine work is done, for the progress ring. */
     progress(dayKey) {
       const steps = Routines.stepsFor(dayKey || DT.todayKey());
@@ -483,12 +536,20 @@
         const key = DT.key(date);
         const steps = Routines.stepsFor(key);
         const done = steps.filter(s => s.done).length;
+        const minutes = steps.reduce((sum, s) => sum + (Number(s.duration) || 0), 0);
+        const doneMinutes = steps
+          .filter(s => s.done)
+          .reduce((sum, s) => sum + (Number(s.duration) || 0), 0);
         out.push({
           key,
           date,
           done,
           total: steps.length,
-          percent: steps.length ? Math.round((done / steps.length) * 100) : null
+          minutes,
+          doneMinutes,
+          percent: steps.length ? Math.round((done / steps.length) * 100) : null,
+          // The same day measured in time, which is what the view now counts.
+          timePercent: minutes ? Math.round((doneMinutes / minutes) * 100) : null
         });
       }
       return out;
@@ -526,6 +587,139 @@
       const day = dayKey || DT.todayKey();
       const now = new Date().getHours() * 60 + new Date().getMinutes();
       return Routines.stepsFor(day).filter(s => !s.done && (DT.toMinutes(s.time) || 0) < now);
+    }
+  };
+
+  // ------------------------------------------------------------- workouts
+
+  /**
+   * A workout is one session on one day: named exercises, each with its sets,
+   * reps and load.
+   *
+   * It is kept apart from routines deliberately. A routine step is time you
+   * meant to spend and either did or did not; a workout is work you actually
+   * did, and what makes it worth recording — the load, and whether it went up
+   * — has no equivalent on a timetable. Folding the two together would have
+   * measured both badly.
+   */
+  const WORKOUT_KINDS = [
+    { id: 'strength', label: 'Strength' },
+    { id: 'cardio', label: 'Cardio' },
+    { id: 'mobility', label: 'Mobility' },
+    { id: 'sport', label: 'Sport' },
+    { id: 'other', label: 'Other' }
+  ];
+
+  function normaliseWorkout(input) {
+    const exercises = (input.exercises || [])
+      .map(x => ({
+        id: x.id || uid('ex'),
+        name: (x.name || '').trim(),
+        sets: Math.max(1, Math.min(99, Math.round(Number(x.sets) || 1))),
+        reps: Math.max(1, Math.min(999, Math.round(Number(x.reps) || 1))),
+        // Zero is not missing data — it is how bodyweight work is recorded.
+        weight: Math.max(0, Math.min(2000, Number(x.weight) || 0))
+      }))
+      .filter(x => x.name);
+
+    return {
+      id: input.id || uid('wo'),
+      name: (input.name || 'Workout').trim(),
+      day: input.day || DT.todayKey(),
+      kind: WORKOUT_KINDS.some(k => k.id === input.kind) ? input.kind : 'strength',
+      duration: Math.max(0, Math.min(1440, Math.round(Number(input.duration) || 0))),
+      note: (input.note || '').trim(),
+      exercises,
+      createdAt: input.createdAt || Date.now(),
+      updatedAt: Date.now()
+    };
+  }
+
+  const Workouts = {
+    all: () => state.data.workouts,
+    byId: id => state.data.workouts.find(w => w.id === id) || null,
+    KINDS: WORKOUT_KINDS,
+
+    /** Newest first: a log is read from the top. */
+    sorted() {
+      return [...state.data.workouts].sort((a, b) =>
+        (b.day || '').localeCompare(a.day || '') || (b.createdAt || 0) - (a.createdAt || 0));
+    },
+
+    forDay(dayKey) {
+      return state.data.workouts.filter(w => w.day === dayKey);
+    },
+
+    save(input) {
+      const record = normaliseWorkout(input);
+      const idx = state.data.workouts.findIndex(w => w.id === record.id);
+      if (idx >= 0) state.data.workouts[idx] = { ...state.data.workouts[idx], ...record };
+      else state.data.workouts.push(record);
+      commit('workouts');
+      return record;
+    },
+
+    remove(id) {
+      state.data.workouts = state.data.workouts.filter(w => w.id !== id);
+      commit('workouts');
+    },
+
+    /** Load shifted in one session: sets x reps x weight, over every exercise. */
+    volumeOf(workout) {
+      return (workout.exercises || [])
+        .reduce((sum, x) => sum + (x.sets * x.reps * x.weight), 0);
+    },
+
+    /** Sessions, minutes and volume over a window ending today. */
+    summary(days) {
+      const span = days || 7;
+      const from = DT.key(DT.addDays(new Date(), -(span - 1)));
+      const today = DT.todayKey();
+      const list = state.data.workouts.filter(w => w.day >= from && w.day <= today);
+      return {
+        sessions: list.length,
+        minutes: list.reduce((sum, w) => sum + (w.duration || 0), 0),
+        volume: list.reduce((sum, w) => sum + Workouts.volumeOf(w), 0),
+        days: new Set(list.map(w => w.day)).size
+      };
+    },
+
+    /** Per-week totals, oldest first, for the trend strip. */
+    history(weeks) {
+      const span = weeks || 8;
+      const first = Number(state.data.settings.firstDayOfWeek) || 0;
+      const thisWeek = DT.startOfWeek(new Date(), first);
+      const out = [];
+      for (let i = span - 1; i >= 0; i--) {
+        const start = DT.addDays(thisWeek, -7 * i);
+        const from = DT.key(start);
+        const to = DT.key(DT.addDays(start, 6));
+        const list = state.data.workouts.filter(w => w.day >= from && w.day <= to);
+        out.push({
+          from,
+          to,
+          sessions: list.length,
+          minutes: list.reduce((sum, w) => sum + (w.duration || 0), 0),
+          volume: list.reduce((sum, w) => sum + Workouts.volumeOf(w), 0)
+        });
+      }
+      return out;
+    },
+
+    /**
+     * Consecutive weeks with at least one session, counting back from this
+     * one. A week is the honest unit here: missing Tuesday is not a lapse,
+     * missing a fortnight is.
+     */
+    streak() {
+      const weeks = Workouts.history(53);
+      let run = 0;
+      for (let i = weeks.length - 1; i >= 0; i--) {
+        // The week in progress does not break a streak until it is over.
+        if (!weeks[i].sessions) { if (i === weeks.length - 1) continue; break; }
+        run++;
+      }
+      return run;
     }
   };
 
@@ -680,7 +874,7 @@
     isActiveTab,
     settings: () => state.data.settings,
     env: () => state.env,
-    Events, Routines, Todos, Notes, Stats,
+    Events, Routines, Workouts, Todos, Notes, Stats,
     CATEGORIES, PRIORITIES, RECURRENCES, NOTE_COLORS,
     categoryOf: id => CATEGORIES.find(c => c.id === id) || CATEGORIES[CATEGORIES.length - 1],
     priorityOf: id => PRIORITIES.find(p => p.id === id) || PRIORITIES[1]

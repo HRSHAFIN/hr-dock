@@ -65,21 +65,33 @@
 
   // ------------------------------------------------------------- momentum
 
+  /** "1h 40m" — the unit this view counts in. */
+  function hours(mins) {
+    const m = Math.max(0, Math.round(mins));
+    if (!m) return '0m';
+    const h = Math.floor(m / 60);
+    if (!h) return `${m}m`;
+    return m % 60 ? `${h}h ${m % 60}m` : `${h}h`;
+  }
+
   /**
    * One honest sentence about where today stands.
-   * Encouragement only counts if it is true, so every line is derived from the
-   * actual step counts rather than picked from a bag of platitudes.
+   *
+   * Counted in time rather than ticks. Four steps of a morning routine and
+   * four hours of study are not the same amount of day, and a line that said
+   * "2 of 11 done" valued them the same. Encouragement only counts if it is
+   * true, so every line here is derived from the hours themselves.
    */
-  function momentumLine(progress, next, overdue, streak) {
-    if (!progress.total) {
+  function momentumLine(effort, next, overdue, streak) {
+    if (!effort.total) {
       return State.Routines.all().length
         ? 'Nothing scheduled today — rest is part of the plan.'
         : 'No routines yet. Build the first one and the day starts planning itself.';
     }
-    if (progress.done === progress.total) {
+    if (effort.done >= effort.total) {
       return streak > 1
-        ? `Every step done — ${streak} days in a row.`
-        : 'Every step done today. That is the whole job.';
+        ? `The day's work is done — ${streak} days in a row.`
+        : 'The day\'s work is done. That is the whole job.';
     }
     if (overdue.length) {
       const first = overdue[0];
@@ -92,11 +104,11 @@
       const when = away <= 0 ? 'now'
         : away < 60 ? `in ${away} min`
           : `at ${DT.formatTime(next.time, State.settings().timeFormat)}`;
-      return progress.done
-        ? `${progress.done} of ${progress.total} done. ${next.title} ${when}.`
-        : `${progress.total} steps today. First up: ${next.title} ${when}.`;
+      return effort.done
+        ? `${hours(effort.done)} in, ${hours(effort.total - effort.done)} to go. ${next.title} ${when}.`
+        : `${hours(effort.total)} of work today. First up: ${next.title} ${when}.`;
     }
-    return `${progress.done} of ${progress.total} done today.`;
+    return `${hours(effort.done)} of ${hours(effort.total)} done today.`;
   }
 
   function renderMomentum() {
@@ -104,38 +116,53 @@
     if (!host) return;
 
     const today = DT.todayKey();
-    const progress = State.Routines.progress(today);
+    const effort = State.Routines.effort(today);
     const next = State.Routines.nextStep(today);
     const overdue = State.Routines.overdue(today);
-    const week = State.Routines.adherence(7);
+    const week = State.Routines.effortOver(7);
     const best = State.Routines.all()
       .reduce((max, r) => Math.max(max, streakOf(r)), 0);
 
     const circumference = 2 * Math.PI * 22;
-    const percent = Math.round(progress.percent);
+    const percent = Math.round(effort.percent);
+
+    // One bar per kind of work, the biggest share first. This is the answer to
+    // "where did the day actually go", which no single figure can give.
+    const kinds = effort.kinds.map(kind => {
+      const cat = State.categoryOf(kind.id);
+      const share = kind.total ? (kind.done / kind.total) * 100 : 0;
+      return `<span class="mo-kind" title="${esc(cat.label)}: ${esc(hours(kind.done))} of ${esc(hours(kind.total))} done">
+        <b>${esc(cat.label)}</b>
+        <i style="--cat:${cat.color}"><em style="width:${Math.round(share)}%"></em></i>
+        <small>${esc(hours(kind.done))} / ${esc(hours(kind.total))}</small>
+      </span>`;
+    }).join('');
 
     host.innerHTML = `
-      <div class="mo-ring" title="${progress.done} of ${progress.total} steps done today">
-        <svg width="54" height="54" viewBox="0 0 54 54">
-          <circle class="bg" cx="27" cy="27" r="22"></circle>
-          <circle class="fg" cx="27" cy="27" r="22"
-                  stroke-dasharray="${circumference}"
-                  stroke-dashoffset="${circumference * (1 - Math.min(1, progress.percent / 100))}"></circle>
-        </svg>
-        <span>${progress.total ? percent + '%' : '—'}</span>
+      <div class="mo-top">
+        <div class="mo-ring" title="${esc(hours(effort.done))} of ${esc(hours(effort.total))} done today">
+          <svg width="54" height="54" viewBox="0 0 54 54">
+            <circle class="bg" cx="27" cy="27" r="22"></circle>
+            <circle class="fg" cx="27" cy="27" r="22"
+                    stroke-dasharray="${circumference}"
+                    stroke-dashoffset="${circumference * (1 - Math.min(1, effort.percent / 100))}"></circle>
+          </svg>
+          <span>${effort.total ? percent + '%' : '—'}</span>
+        </div>
+        <div class="mo-copy">
+          <b>${effort.total ? `${hours(effort.done)} of ${hours(effort.total)} today` : 'Nothing scheduled today'}</b>
+          <p>${esc(momentumLine(effort, next, overdue, best))}</p>
+        </div>
+        <div class="mo-stats">
+          <span class="mo-stat${best > 0 ? ' hot' : ''}" title="Longest run of fully finished days">
+            ${Icons.icon('flame', 13)}${best}<small>day streak</small>
+          </span>
+          <span class="mo-stat" title="Time put in over the last 7 scheduled days">
+            ${week.percent === null ? '—' : week.percent + '%'}<small>this week</small>
+          </span>
+        </div>
       </div>
-      <div class="mo-copy">
-        <b>${progress.total ? `${progress.done} of ${progress.total} steps today` : 'Nothing scheduled today'}</b>
-        <p>${esc(momentumLine(progress, next, overdue, best))}</p>
-      </div>
-      <div class="mo-stats">
-        <span class="mo-stat${best > 0 ? ' hot' : ''}" title="Longest run of fully finished days">
-          ${Icons.icon('flame', 13)}${best}<small>day streak</small>
-        </span>
-        <span class="mo-stat" title="Steps completed over the last 7 scheduled days">
-          ${week.percent === null ? '—' : week.percent + '%'}<small>this week</small>
-        </span>
-      </div>`;
+      ${kinds ? `<div class="mo-kinds">${kinds}</div>` : ''}`;
   }
 
   // ------------------------------------------------------------- timetable
@@ -525,7 +552,8 @@
           <span class="routine-dot" style="background:${cat.color}"></span>
           <b>${esc(routine.name)}</b>
           ${streak > 0 ? `<span class="dg-streak" title="${streak}-day streak">${Icons.icon('flame', 11)}${streak}</span>` : ''}
-          <span class="dg-count">${done}/${groupSteps.length}</span>
+          <span class="dg-count">${esc(hours(groupSteps.filter(s => s.done)
+            .reduce((sum, s) => sum + (Number(s.duration) || 0), 0)))} · ${done}/${groupSteps.length}</span>
         </div>
         <div class="mini-bar"><span style="width:${(done / groupSteps.length) * 100}%"></span></div>`;
 
@@ -558,12 +586,12 @@
     const strip = el('div', { class: 'card consistency' });
     strip.innerHTML = `
       <div class="card-head"><h3>Last 7 days</h3>
-        <span class="pill">${State.Routines.adherence(7).percent ?? 0}% of steps</span></div>
+        <span class="pill">${State.Routines.effortOver(7).percent ?? 0}% of the time</span></div>
       <div class="week-dots">
         ${history.map(d => `
-          <span class="wd${d.percent === null ? ' off' : d.percent === 100 ? ' full' : d.percent > 0 ? ' part' : ' miss'}"
-                title="${esc(DT.relativeDay(d.key))}: ${d.total ? d.done + '/' + d.total : 'nothing scheduled'}">
-            <i style="--fill:${d.percent === null ? 0 : d.percent}%"></i>
+          <span class="wd${d.timePercent === null ? ' off' : d.timePercent === 100 ? ' full' : d.timePercent > 0 ? ' part' : ' miss'}"
+                title="${esc(DT.relativeDay(d.key))}: ${d.total ? esc(hours(d.doneMinutes)) + ' of ' + esc(hours(d.minutes)) : 'nothing scheduled'}">
+            <i style="--fill:${d.timePercent === null ? 0 : d.timePercent}%"></i>
             <small>${esc(DT.DAY_NAMES[d.date.getDay()].slice(0, 1))}</small>
           </span>`).join('')}
       </div>`;
@@ -920,16 +948,16 @@
     host.hidden = false;
 
     const nowMinutes = new Date().getHours() * 60 + new Date().getMinutes();
-    const progress = State.Routines.progress(today);
+    const effort = State.Routines.effort(today);
     const next = State.Routines.nextStep(today);
 
     host.innerHTML = `
       <div class="card-head">
         <h3>${Icons.icon('routine', 13)} Today's routine</h3>
-        <span class="pill">${progress.done}/${progress.total}</span>
+        <span class="pill">${esc(hours(effort.done))} / ${esc(hours(effort.total))}</span>
       </div>
-      <div class="mini-bar" style="margin-bottom:8px"><span style="width:${progress.percent}%"></span></div>
-      <p class="routine-nudge">${esc(momentumLine(progress, next, State.Routines.overdue(today),
+      <div class="mini-bar" style="margin-bottom:8px"><span style="width:${effort.percent}%"></span></div>
+      <p class="routine-nudge">${esc(momentumLine(effort, next, State.Routines.overdue(today),
         State.Routines.all().reduce((m, r) => Math.max(m, streakOf(r)), 0)))}</p>`;
 
     const list = el('div', { class: 'routine-check-list' });

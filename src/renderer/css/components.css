@@ -864,6 +864,107 @@ body.ready { opacity: 1; }
 .wx-toggle[aria-expanded="true"] svg { transform: rotate(90deg); }
 .wx-extended { animation: fade-up var(--base) both; }
 
+/* -------------------------------------------------------------- workouts */
+/* Its own tab, because a workout is work already done: what it is worth
+   saying about is the load and whether it moved, which a timetable has no
+   room for. */
+
+.workout-summary { display: flex; flex-direction: column; gap: 9px; }
+.wo-figures { display: flex; gap: 6px; }
+.wo-figure {
+  flex: 1; min-width: 0;
+  display: flex; flex-direction: column; align-items: center; gap: 1px;
+  padding: 7px 4px; border-radius: var(--radius);
+  background: var(--surface-1); border: 1px solid var(--stroke);
+}
+.wo-figure b {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums;
+}
+.wo-figure small {
+  font-size: 8.5px; font-weight: 500; color: var(--ink-4);
+  text-transform: uppercase; letter-spacing: .05em;
+}
+.wo-figure.hot { border-color: color-mix(in srgb, var(--prio-high) 30%, transparent); }
+.wo-figure.hot b { color: var(--prio-high); }
+.wo-line { font-size: 11.5px; color: var(--ink-2); line-height: 1.45; }
+
+/* Eight weeks of volume. The shape matters more than the numbers: a run of
+   even bars is the thing worth seeing. */
+.wo-trend {
+  display: flex; align-items: flex-end; gap: 4px; height: 34px;
+  padding-top: 2px;
+}
+.wo-bar { flex: 1; display: flex; align-items: flex-end; height: 100%; }
+.wo-bar i {
+  display: block; width: 100%; min-height: 3px; border-radius: 3px;
+  background: linear-gradient(180deg,
+    var(--accent), color-mix(in srgb, var(--accent) 45%, transparent));
+}
+/* A week with nothing in it is a flat line, not an empty box. */
+.wo-bar.empty i { height: 3px !important; background: var(--surface-3); }
+
+.workout-bar { display: flex; align-items: center; gap: 8px; margin: 13px 0 8px; }
+.workout-bar h3 { font-size: 12px; font-weight: 600; margin-right: auto; }
+
+.workout-list { display: flex; flex-direction: column; gap: 8px; }
+.wo-group-label {
+  font-size: 9px; font-weight: 600; letter-spacing: .07em;
+  text-transform: uppercase; color: var(--ink-4);
+  margin-top: 4px;
+}
+.wo-group-label:first-child { margin-top: 0; }
+
+.workout {
+  padding: 11px 12px;
+  border-radius: var(--radius-lg);
+  background: var(--surface-1);
+  border: 1px solid var(--stroke);
+}
+.workout:hover { border-color: var(--stroke-strong); }
+.wo-head { display: flex; align-items: center; gap: 7px; }
+.wo-head b { font-size: 13px; font-weight: 600; }
+.wo-kind {
+  font-size: 9px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase;
+  padding: 2px 7px; border-radius: 99px;
+  color: var(--accent); background: var(--accent-soft);
+}
+.wo-when { margin-left: auto; font-size: 10.5px; color: var(--ink-4); white-space: nowrap; }
+.wo-meta {
+  display: flex; flex-wrap: wrap; gap: 4px 11px;
+  margin-top: 6px; font-size: 10.5px; color: var(--ink-3);
+}
+.wo-meta span { display: inline-flex; align-items: center; gap: 4px; }
+.wo-meta svg { opacity: .7; }
+
+.wo-lifts { display: flex; flex-wrap: wrap; gap: 5px; margin: 9px 0 2px; }
+.wo-lift {
+  display: inline-flex; align-items: baseline; gap: 5px;
+  padding: 3px 8px; border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  font-size: 10.5px; color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+.wo-lift i { font-style: normal; font-weight: 600; color: var(--ink); }
+.wo-note {
+  margin-top: 8px; font-size: 11px; color: var(--ink-2);
+  line-height: 1.45; white-space: pre-wrap;
+}
+.wo-foot { display: flex; align-items: center; justify-content: flex-end; gap: 4px; margin-top: 9px; }
+
+/* the editor: a row per exercise, sized so the numbers stay legible */
+.lift-editor { display: flex; flex-direction: column; gap: 5px; }
+.lift-legend, .lift-row {
+  display: grid; grid-template-columns: 1fr 46px 46px 56px 26px;
+  gap: 5px; align-items: center;
+}
+.lift-legend span {
+  font-size: 8.5px; font-weight: 600; letter-spacing: .05em;
+  text-transform: uppercase; color: var(--ink-4);
+}
+.lift-legend span:nth-child(n+2) { text-align: center; }
+.lift-row input[type="number"] { text-align: center; padding-left: 4px; padding-right: 4px; }
+
 /* -------------------------------------------------------------- routines */
 .routine-list { display: flex; flex-direction: column; gap: 8px; }
 
@@ -1082,7 +1183,7 @@ mark {
 
 /* momentum strip --------------------------------------------------------- */
 .momentum {
-  display: flex; align-items: center; gap: 13px;
+  display: flex; flex-direction: column; gap: 9px;
   padding: 13px 14px;
   margin-top: 6px;
   border-radius: var(--radius-lg);
@@ -1091,6 +1192,7 @@ mark {
     radial-gradient(120% 160% at 0% 0%, var(--accent-soft), transparent 62%),
     var(--surface-1);
 }
+.mo-top { display: flex; align-items: center; gap: 13px; }
 .mo-ring { position: relative; width: 54px; height: 54px; flex: 0 0 auto; }
 .mo-ring svg { transform: rotate(-90deg); }
 .mo-ring circle { fill: none; stroke-width: 5.5; stroke-linecap: round; }
@@ -1123,6 +1225,33 @@ mark {
 .mo-stat small {
   font-size: 9px; font-weight: 500; color: var(--ink-4);
   text-transform: uppercase; letter-spacing: .05em; margin-left: 2px;
+}
+
+/* Where the day's hours actually went. One row per kind of work, widest
+   share first — the part a single percentage cannot tell you. */
+.mo-kinds {
+  display: flex; flex-wrap: wrap; gap: 5px 12px;
+  padding-top: 9px;
+  border-top: 1px solid var(--stroke);
+}
+.mo-kind { display: flex; align-items: center; gap: 6px; }
+.mo-kind b {
+  font-size: 9px; font-weight: 600; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--ink-3);
+  white-space: nowrap;
+}
+.mo-kind i {
+  display: block; width: 40px; height: 5px; border-radius: 99px;
+  background: var(--surface-3); overflow: hidden; flex: 0 0 auto;
+}
+.mo-kind em {
+  display: block; height: 100%; border-radius: 99px;
+  background: var(--cat, var(--accent));
+  transition: width var(--spring);
+}
+.mo-kind small {
+  font-size: 9.5px; color: var(--ink-3);
+  font-variant-numeric: tabular-nums; white-space: nowrap;
 }
 
 /* the timetable ---------------------------------------------------------- */

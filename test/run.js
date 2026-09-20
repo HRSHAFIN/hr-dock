@@ -312,6 +312,9 @@ suite('data store defaults', t => {
   t.check('notifications default to on', DEFAULTS.settings.notifications.enabled === true);
   t.check('collections start empty', DEFAULTS.events.length === 0 && DEFAULTS.todos.length === 0);
   t.check('stats are initialised', !!DEFAULTS.stats.streak && DEFAULTS.stats.streak.current === 0);
+  t.check('workouts are a collection of their own', Array.isArray(DEFAULTS.workouts));
+  t.check('the workouts tab ships switched on', DEFAULTS.settings.modules.workouts === true);
+  t.equal('load is recorded in kilograms by default', DEFAULTS.settings.weightUnit, 'kg');
 });
 
 process.exit(report() ? 0 : 1);

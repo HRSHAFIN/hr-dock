@@ -63,7 +63,11 @@ const data = {
     weather: { unit: 'c', detailed: true, auto: true, place: null, refreshMinutes: 30 },
     notifications: { enabled: true, sound: true, silent: false, defaultLeadMinutes: 10, snoozeMinutes: 10 },
     system: { enabled: true },
-    modules: { weather: true, schedule: true, todos: true, notes: true, system: true }
+    weightUnit: 'kg',
+    modules: {
+      weather: true, schedule: true, todos: true, notes: true, system: true,
+      workouts: true
+    }
   },
   bounds: { x: 60, y: 60, width: 460, height: 700 },
   compactBounds: { x: 60, y: 60, width: 340, height: 210 },
@@ -85,6 +89,48 @@ const data = {
     { id: 'r3', name: 'Evening wind-down', category: 'health', days: [0,1,2,3,4,5,6], active: true, remind: 10, completed: {}, createdAt: Date.now(), updatedAt: Date.now(),
       steps: [ { id: 'c1', title: 'Shut down work', time: '18:00', duration: 20 }, { id: 'c2', title: 'Exercise', time: '18:30', duration: 45 }, { id: 'c3', title: 'Read', time: '21:30', duration: 30 } ] }
   ],
+  workouts: [
+    {
+      id: 'wo1', name: 'Push day', day: shift(-1), kind: 'strength', duration: 52,
+      note: 'Bench felt easy — add 2.5kg next time.',
+      exercises: [
+        { id: 'e1', name: 'Bench press', sets: 4, reps: 8, weight: 60 },
+        { id: 'e2', name: 'Overhead press', sets: 3, reps: 10, weight: 35 },
+        { id: 'e3', name: 'Dips', sets: 3, reps: 12, weight: 0 }
+      ],
+      createdAt: Date.now() - 86400000, updatedAt: Date.now() - 86400000
+    },
+    {
+      id: 'wo2', name: 'Easy 5k', day: shift(-3), kind: 'cardio', duration: 28,
+      note: '', exercises: [],
+      createdAt: Date.now() - 259200000, updatedAt: Date.now() - 259200000
+    },
+    {
+      id: 'wo3', name: 'Leg day', day: shift(-4), kind: 'strength', duration: 61,
+      note: '',
+      exercises: [
+        { id: 'e4', name: 'Back squat', sets: 5, reps: 5, weight: 85 },
+        { id: 'e5', name: 'Romanian deadlift', sets: 3, reps: 8, weight: 70 },
+        { id: 'e6', name: 'Calf raise', sets: 4, reps: 15, weight: 40 }
+      ],
+      createdAt: Date.now() - 345600000, updatedAt: Date.now() - 345600000
+    },
+    {
+      id: 'wo4', name: 'Pull day', day: shift(-8), kind: 'strength', duration: 48,
+      note: '',
+      exercises: [
+        { id: 'e7', name: 'Barbell row', sets: 4, reps: 8, weight: 55 },
+        { id: 'e8', name: 'Pull-ups', sets: 4, reps: 6, weight: 0 }
+      ],
+      createdAt: Date.now() - 691200000, updatedAt: Date.now() - 691200000
+    },
+    {
+      id: 'wo5', name: 'Mobility', day: shift(-11), kind: 'mobility', duration: 20,
+      note: '', exercises: [],
+      createdAt: Date.now() - 950400000, updatedAt: Date.now() - 950400000
+    }
+  ],
+
   todos: [
     { id: 'td1', title: 'Ship the release notes', notes: 'Include the migration steps.', done: false, priority: 'critical', category: 'work', due: today, dueTime: '16:00', remind: 30, recurrence: 'none', interval: 1, order: 0, createdAt: Date.now() - 86400000, completedAt: null },
     { id: 'td2', title: 'Review PR #482', notes: '', done: false, priority: 'high', category: 'work', due: today, dueTime: '', remind: false, recurrence: 'none', interval: 1, order: 1, createdAt: Date.now() - 172800000, completedAt: null },

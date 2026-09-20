@@ -165,7 +165,11 @@
 
       row('Week starts on', null,
         select([{ id: '1', label: 'Monday' }, { id: '0', label: 'Sunday' }, { id: '6', label: 'Saturday' }],
-          String(s.firstDayOfWeek), v => patch({ firstDayOfWeek: Number(v) })))
+          String(s.firstDayOfWeek), v => patch({ firstDayOfWeek: Number(v) }))),
+
+      row('Workout load', 'The unit written against every exercise.',
+        segmented([{ id: 'kg', label: 'kg' }, { id: 'lb', label: 'lb' }],
+          s.weightUnit === 'lb' ? 'lb' : 'kg', v => patch({ weightUnit: v })))
     ]);
   }
 
@@ -270,6 +274,8 @@
 
   function modules(s) {
     return group('Modules', [
+      row('Workouts', 'A separate tab for training: sessions, exercises and load.',
+        toggle(s.modules.workouts !== false, v => patch({ modules: { workouts: v } }))),
       row('System monitor', 'CPU, memory, disks, network and battery.',
         toggle(s.modules.system !== false, v => patch({ modules: { system: v } }))),
       row('Schedule on Today', 'Show the day timeline in the Today view.',

@@ -17,6 +17,7 @@ network request the app ever makes is the weather lookup.
   <img src="docs/screenshots/tasks.png" width="230" alt="Tasks">
   <img src="docs/screenshots/calendar.png" width="230" alt="Calendar">
   <img src="docs/screenshots/notes.png" width="230" alt="Notes">
+  <img src="docs/screenshots/workouts.png" width="230" alt="The workout log">
 </p>
 
 ---
@@ -88,10 +89,13 @@ than followed literally.
 
 *What keeps you honest:*
 
-- A **momentum strip** at the top of every routine view: today's completion ring,
-  your streak, this week's adherence, and one plain sentence about where you stand —
-  "2 of 11 done. Breakfast at 07:40" or "3 steps slipped past. Start with Exercise."
-  Every line is derived from your actual step counts, so it never cheers for nothing.
+- A **momentum strip** at the top of every routine view, counted in time rather
+  than ticks: "1h 40m of 4h today", a bar per kind of work — study, work, general —
+  your streak, the share of this week's hours you actually put in, and one plain
+  sentence about where you stand: "1h 40m in, 2h 20m to go. Focus block two in 12
+  min." A four-step morning and a four-hour study block are not the same amount of
+  day, and a step tally said they were. Every line is derived from the hours
+  themselves, so it never cheers for nothing.
 - **A reminder per step**, at whatever lead time you set.
 - **One follow-up nudge** if a step is still untouched ten minutes after its time.
   Exactly one — a routine you quietly skip should say something, but nagging is how
@@ -107,6 +111,23 @@ Reminders can be ticked off from the notification card itself, and opening one l
 on the Today checklist rather than the timetable — the shortest path from "you were
 going to do this" to "done".
 
+
+**Workouts** — training gets its own tab rather than pretending to be a routine.
+A routine step is time you *meant* to spend and either did or did not; a workout is
+work you already did, and what makes it worth recording — the load, and whether it
+went up — has nowhere to live on a timetable.
+
+Each session is a name, a date, a kind (strength, cardio, mobility, sport) and how
+long it took, with a row per exercise: sets, reps and load. Leave the load at zero
+and it reads as bodyweight rather than as missing data. The week above the log
+keeps the count — sessions, time, volume moved, and a run of weeks with at least
+one session in them, because missing a Tuesday is not a lapse and missing a
+fortnight is. Eight weeks of volume sit underneath as a sparkline. Any session can
+be repeated into today with one click, which is most of how a log gets filled in.
+
+Not everyone trains, so the whole tab is optional: **Settings → Modules → Workouts**
+hides it, nav entry and all. Loads are written in kg or lb (Settings → Clock &
+calendar).
 
 **Weather** — live data from [Open-Meteo](https://open-meteo.com) (no API key, no
 account). Temperature, humidity, feels-like, wind, rain probability, pressure, UV,
