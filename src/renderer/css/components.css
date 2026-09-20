@@ -665,9 +665,15 @@ html[data-theme="light"] .note-editor { background: #f9fafd; }
 
 .meters { display: flex; flex-direction: column; gap: 9px; }
 .meter { display: flex; align-items: center; gap: 9px; font-size: 11.5px; }
-.meter .m-name { width: 26px; font-weight: 600; }
-.meter .m-track { display: block; flex: 1; height: 6px; border-radius: 4px; background: var(--surface-3); overflow: hidden; }
-.meter .m-fill { display: block; height: 100%; border-radius: 4px; background: var(--accent); transition: width var(--base), background var(--base); }
+/* A volume label can be "C:" or "D: Backup Drive". Fixed width and clipped, or
+   a long one wraps to three lines and takes the whole row apart. */
+.meter .m-name {
+  width: 74px; flex: 0 0 auto; font-weight: 600;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* Not scoped to .meter: the fan rows draw the same bar. */
+.m-track { display: block; flex: 1; height: 6px; border-radius: 4px; background: var(--surface-3); overflow: hidden; }
+.m-fill { display: block; height: 100%; border-radius: 4px; background: var(--accent); transition: width var(--base), background var(--base); }
 .meter .m-val { font-size: 10.5px; color: var(--ink-3); font-variant-numeric: tabular-nums; white-space: nowrap; }
 
 .spark { height: 54px; position: relative; }
@@ -863,6 +869,133 @@ body.ready { opacity: 1; }
 .wx-toggle svg { transition: transform var(--base); }
 .wx-toggle[aria-expanded="true"] svg { transform: rotate(90deg); }
 .wx-extended { animation: fade-up var(--base) both; }
+
+/* ---------------------------------------------------------- system view */
+/* Built once and patched per sample, so these rules describe a structure that
+   stays put while numbers move inside it. */
+
+.system-panels { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.sys-card { display: flex; flex-direction: column; gap: 9px; }
+.sys-title {
+  font-size: 12px; font-weight: 600; color: var(--ink);
+  line-height: 1.3; margin-top: -2px;
+}
+.sys-note {
+  font-size: 10.5px; line-height: 1.5; color: var(--ink-3);
+  padding: 8px 10px; border-radius: var(--radius);
+  background: var(--surface-1); border: 1px solid var(--stroke);
+}
+
+/* key/value grid, tuned for readouts rather than prose */
+.sys-kv {
+  display: grid; grid-template-columns: auto 1fr;
+  gap: 3px 12px; font-size: 11px; align-items: baseline;
+}
+.sys-kv dt { color: var(--ink-4); white-space: nowrap; }
+.sys-kv dd {
+  color: var(--ink); text-align: right;
+  font-variant-numeric: tabular-nums;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* the graphs */
+.spark { position: relative; height: 40px; }
+.spark-svg { width: 100%; height: 40px; display: block; }
+.spark-svg polyline { fill: none; stroke-width: 1.5; vector-effect: non-scaling-stroke; }
+.spark-svg path { stroke: none; }
+.cpu-line, .down-line, .read-line, .gpu-line { stroke: var(--cat-meeting); }
+.mem-line, .up-line, .write-line, .vram-line { stroke: var(--cat-personal); }
+.cpu-area, .down-area, .read-area, .gpu-area {
+  fill: color-mix(in srgb, var(--cat-meeting) 20%, transparent);
+}
+.mem-area, .up-area, .write-area, .vram-area { fill: none; }
+
+/* one bar per hardware thread */
+.core-grid { display: flex; align-items: flex-end; gap: 2px; height: 26px; }
+.core {
+  flex: 1; display: flex; align-items: flex-end; height: 100%;
+  background: var(--surface-1); border-radius: 2px; overflow: hidden;
+}
+.core i {
+  display: block; width: 100%; border-radius: 2px;
+  background: linear-gradient(180deg, var(--accent), color-mix(in srgb, var(--accent) 50%, transparent));
+  transition: height var(--fast);
+}
+
+/* memory sticks */
+.stick-list { display: flex; flex-wrap: wrap; gap: 4px; }
+.stick {
+  display: inline-flex; align-items: baseline; gap: 5px;
+  padding: 3px 8px; border-radius: var(--radius-sm);
+  background: var(--surface-2); font-size: 10px; color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+.stick i { font-style: normal; font-weight: 600; color: var(--ink); }
+
+/* physical drives */
+.drive-list { display: flex; flex-direction: column; gap: 5px; }
+.drive {
+  display: grid; grid-template-columns: 1fr auto;
+  gap: 1px 8px; align-items: baseline;
+  padding: 7px 9px; border-radius: var(--radius);
+  background: var(--surface-1); border: 1px solid var(--stroke);
+}
+.drive b { font-size: 11.5px; font-weight: 600; }
+.drive span { grid-column: 1; font-size: 10px; color: var(--ink-4); }
+.drive .health {
+  grid-row: 1 / span 2; grid-column: 2; align-self: center;
+  font-style: normal; font-size: 9px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: .05em;
+  padding: 2px 7px; border-radius: 99px;
+}
+.health.ok { color: var(--prio-low); background: color-mix(in srgb, var(--prio-low) 15%, transparent); }
+.health.warn { color: var(--prio-high); background: color-mix(in srgb, var(--prio-high) 15%, transparent); }
+
+/* fans */
+.fan-list { display: flex; flex-direction: column; gap: 6px; }
+.fan-row {
+  display: grid; grid-template-columns: 74px 1fr auto;
+  align-items: center; gap: 9px; font-size: 11px;
+}
+.fan-row b { font-weight: 500; color: var(--ink-2); }
+.fan-row em {
+  font-style: normal; font-variant-numeric: tabular-nums;
+  font-weight: 600; white-space: nowrap;
+}
+
+/* the speed test */
+.st-dials { display: flex; gap: 6px; }
+.st-dial {
+  flex: 1; min-width: 0;
+  display: flex; flex-direction: column; align-items: center; gap: 1px;
+  padding: 9px 4px; border-radius: var(--radius);
+  background: var(--surface-1); border: 1px solid var(--stroke);
+}
+.st-dial b {
+  font-size: 17px; font-weight: 700; font-variant-numeric: tabular-nums;
+  color: var(--accent); line-height: 1.1;
+}
+.st-dial small {
+  font-size: 8.5px; font-weight: 500; color: var(--ink-4);
+  text-transform: uppercase; letter-spacing: .04em; text-align: center;
+}
+.st-status { font-size: 10.5px; color: var(--ink-3); line-height: 1.45; }
+
+.st-history { display: flex; flex-direction: column; gap: 2px; }
+.st-head {
+  font-size: 9px; font-weight: 600; letter-spacing: .07em;
+  text-transform: uppercase; color: var(--ink-4); margin-bottom: 3px;
+}
+.st-row {
+  display: grid; grid-template-columns: 1fr auto auto auto;
+  gap: 10px; align-items: baseline;
+  padding: 4px 2px; font-size: 10.5px; color: var(--ink-3);
+  border-top: 1px solid var(--stroke);
+  font-variant-numeric: tabular-nums;
+}
+.st-row b { font-weight: 600; color: var(--ink); }
+.st-row b small { font-weight: 400; color: var(--ink-4); margin-left: 1px; }
+.st-row em { font-style: normal; }
 
 /* -------------------------------------------------------------- workouts */
 /* Its own tab, because a workout is work already done: what it is worth

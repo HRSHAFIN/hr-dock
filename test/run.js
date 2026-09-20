@@ -315,6 +315,17 @@ suite('data store defaults', t => {
   t.check('workouts are a collection of their own', Array.isArray(DEFAULTS.workouts));
   t.check('the workouts tab ships switched on', DEFAULTS.settings.modules.workouts === true);
   t.equal('load is recorded in kilograms by default', DEFAULTS.settings.weightUnit, 'kg');
+  t.check('speed tests get their own collection', Array.isArray(DEFAULTS.speedtests));
+});
+
+// --------------------------------------------------------- speed test maths
+
+suite('speed test', t => {
+  const { mbps } = require('../src/main/speedtest.js');
+  t.equal('a megabyte in a second is 8 Mbps', Math.round(mbps(1e6, 1000)), 8);
+  t.equal('half the time is twice the rate', Math.round(mbps(1e6, 500)), 16);
+  t.equal('no elapsed time is not an infinite connection', mbps(1e6, 0), 0);
+  t.check('a real transfer lands in a sane range', mbps(25e6, 2000) > 90 && mbps(25e6, 2000) < 110);
 });
 
 process.exit(report() ? 0 : 1);

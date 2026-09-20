@@ -73,7 +73,6 @@
     <button class="tab" data-tab="workouts" role="tab" title="Workouts"><span class="tab-icon"></span><span class="tab-label">Workouts</span></button>
     <button class="tab" data-tab="stats"    role="tab" title="Insights"><span class="tab-icon"></span><span class="tab-label">Insights</span></button>
     <button class="tab" data-tab="system"   role="tab" title="System"><span class="tab-icon"></span><span class="tab-label">System</span></button>
-    <button class="tab" data-tab="settings" role="tab" title="Settings"><span class="tab-icon"></span><span class="tab-label">Settings</span></button>
     <span class="tab-indicator" id="tabIndicator"></span>
   </nav>
 
@@ -207,9 +206,7 @@
     <!-- SYSTEM -->
     <section class="view" data-view="system">
       <div class="gauge-row" id="gaugeRow"></div>
-      <div class="card"><div class="card-head"><h3>Storage</h3></div><div class="meters" id="diskMeters"></div></div>
-      <div class="card"><div class="card-head"><h3>Network</h3><span class="pill" id="netPill">—</span></div><div class="spark" id="netSpark"></div></div>
-      <div class="card"><div class="card-head"><h3>Machine</h3></div><div class="kv" id="sysKv"></div></div>
+      <div class="system-panels" id="systemPanels"></div>
     </section>
 
     <!-- SETTINGS -->

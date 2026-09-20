@@ -19,6 +19,7 @@ const os = require('os');
 const { Store } = require('./store.js');
 const { WeatherService } = require('./weather.js');
 const { SystemMonitor } = require('./system.js');
+const { SpeedTest } = require('./speedtest.js');
 const { ReminderEngine } = require('./reminders.js');
 
 const isDev = process.argv.includes('--dev');
@@ -37,6 +38,7 @@ const SNAP_PX = 24;
 let store = null;
 let weather = null;
 let monitor = null;
+let speedtest = null;
 let reminders = null;
 let win = null;
 let tray = null;
@@ -176,6 +178,21 @@ function createWindow() {
     if (captureTarget) {
       setTimeout(async () => {
         try {
+          // A long view needs more than one frame to document. Scrolling the
+          // content pane before the grab is the only way to photograph the
+          // bottom of the System tab.
+          const click = process.env.HRDOCK_CAPTURE_CLICK;
+          if (click) {
+            await win.webContents.executeJavaScript(
+              `(document.querySelector(${JSON.stringify(click)}) || {}).click?.()`);
+            await new Promise(r => setTimeout(r, Number(process.env.HRDOCK_CAPTURE_SETTLE) || 2000));
+          }
+          const scroll = Number(process.env.HRDOCK_CAPTURE_SCROLL) || 0;
+          if (scroll) {
+            await win.webContents.executeJavaScript(
+              `document.getElementById('views').scrollTop = ${scroll};`);
+            await new Promise(r => setTimeout(r, 400));
+          }
           const image = await win.webContents.capturePage();
           fs.writeFileSync(captureTarget, image.toPNG());
           console.log(`[capture] wrote ${captureTarget}`);
@@ -502,6 +519,33 @@ function registerIpc() {
     }
     monitor.stop();
     return null;
+  });
+
+  // The machine's fixed description. Queried once inside the monitor and
+  // cached there, so asking repeatedly costs nothing.
+  ipcMain.handle('system:inventory', () => monitor.inventory());
+
+  ipcMain.handle('speedtest:run', async () => {
+    if (!speedtest) {
+      speedtest = new SpeedTest();
+      speedtest.on('phase', p => send('speedtest:phase', p));
+      speedtest.on('progress', p => send('speedtest:progress', p));
+    }
+    try {
+      const result = await speedtest.run();
+      store.data.speedtests = [result, ...(store.data.speedtests || [])].slice(0, 20);
+      store.save();
+      return { ok: true, result, history: store.data.speedtests };
+    } catch (err) {
+      return { ok: false, error: err.message };
+    }
+  });
+
+  ipcMain.handle('speedtest:history', () => store.data.speedtests || []);
+  ipcMain.handle('speedtest:clear', () => {
+    store.data.speedtests = [];
+    store.save();
+    return [];
   });
 
   ipcMain.handle('reminder:snooze', (_e, { reminder, minutes }) => reminders.snooze(reminder, minutes));

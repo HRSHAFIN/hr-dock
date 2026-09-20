@@ -161,8 +161,54 @@ weekly score (completion rate 70 pts + focused time 30 pts, 5 per hour), current
 best streak, a seven-day bar chart, a month heatmap, category breakdown, and a focus
 timer that credits time to the day.
 
-**System monitor** — CPU, memory, per-drive storage, live network throughput
-sparkline, battery and thermals where the hardware exposes them.
+**System monitor** — a full hardware readout, built once and then patched two
+seconds at a time so the panel does not rebuild itself under your cursor.
+
+- **Processor** — model, architecture, socket, cores and threads, L2/L3 cache,
+  live usage, the real boost clock (read from the performance counter, so it
+  shows 5.3 GHz on a 4.4 GHz part rather than the nameplate figure), and a bar
+  per hardware thread.
+- **Memory** — in use, available, installed, and the modules themselves: size,
+  type, configured speed and which slot each sits in.
+- **Graphics** — model, vendor, total VRAM, driver, output mode, then live
+  usage, temperature, core and memory clocks, VRAM in use, fan speed and power
+  draw. Full telemetry comes from `nvidia-smi`, which ships with the NVIDIA
+  driver; anything else falls back to the vendor-neutral GPU Engine counter,
+  which knows usage and nothing more. Machines with an integrated adapter and a
+  virtual display driver report several cards — the one with real memory behind
+  it is the one shown, and the others are named underneath.
+- **Storage** — every physical drive with its model, bus, media type and SMART
+  health, each volume's free space, and live read/write throughput.
+- **Cooling** — every fan that will say. In practice that means the GPU;
+  see the limitation below.
+- **Network** — download and upload in MB/s with a live graph, lifetime bytes
+  received and sent, the active adapter and whether it is Wi-Fi or Ethernet.
+- **Machine** — computer name, OS and build, manufacturer and model,
+  motherboard, BIOS version and date, processor, graphics, memory, storage and
+  uptime, in one panel to read off rather than hunt for.
+
+**Two honest gaps.** CPU temperature and motherboard fan RPM are not readable
+here, and the panel says so in place of a number. Consumer desktops do not
+publish a CPU thermal zone through WMI, and fan headers sit behind the Super I/O
+chip, which Windows does not expose to an unprivileged program at all. Reading
+either means shipping a signed kernel driver and running elevated — a large
+change in what this widget is, for two figures. GPU temperature and fan speed
+*are* shown, because the graphics driver already exposes them.
+
+**Internet speed test** — download, upload, ping, jitter, the edge that served
+the test, and a history of the last twenty runs. Latency is time-to-first-byte
+over several probes with the handshake discarded; throughput grows the payload
+until a transfer runs long enough to have left TCP slow-start behind, and
+reports the largest. It runs only when you press the button.
+
+> It measures against Cloudflare's public speed endpoints — no account and no
+> key, and a point of presence close enough that the number means something.
+> This is the only request the app makes besides the optional weather lookup,
+> and like the weather it is opt-in by action: nothing is sent unless you start
+> a test.
+
+**Settings** — one panel, reached from the gear in the header. It used to be a
+tab as well; two doors into one room made it look like two features.
 
 **Widget behaviour** — frameless and translucent, drag from anywhere in the header,
 edge snapping, eight resize handles, position remembered per mode, multi-monitor

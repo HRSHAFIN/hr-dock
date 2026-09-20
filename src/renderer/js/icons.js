@@ -19,6 +19,8 @@
     chart: '<path d="M3 3v18h18"/><path d="M7 15l4-5 3 3 5-7"/>',
     routine: '<path d="M20.5 9A9 9 0 0 0 5 6.2"/><path d="M3.5 15A9 9 0 0 0 19 17.8"/><path d="M21 3.5V9h-5.5M3 20.5V15h5.5"/>',
     dumbbell: '<path d="M6.5 8v8M3.5 10v4M17.5 8v8M20.5 10v4M6.5 12h11"/>',
+    gpu: '<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="9" cy="12" r="3"/><path d="M15 10h4M15 14h4"/>',
+    fan: '<circle cx="12" cy="12" r="2"/><path d="M12 10c0-3.5.5-6 2-6s2.5 2 1.5 4.5S12 13.5 12 10Z"/><path d="M14 12c3.5 0 6 .5 6 2s-2 2.5-4.5 1.5S10.5 12 14 12Z"/><path d="M12 14c0 3.5-.5 6-2 6s-2.5-2-1.5-4.5S12 10.5 12 14Z"/><path d="M10 12c-3.5 0-6-.5-6-2s2-2.5 4.5-1.5S13.5 12 10 12Z"/>',
     cpu: '<rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 2v3M15 2v3M9 19v3M15 19v3M2 9h3M2 15h3M19 9h3M19 15h3"/>',
 
     // actions

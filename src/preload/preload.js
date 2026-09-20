@@ -12,6 +12,8 @@ const EVENTS = [
   'reminder:fired',
   'system:sample',
   'system:resume',
+  'speedtest:phase',
+  'speedtest:progress',
   'settings:changed',
   'state:changed',
   'data:replaced',
@@ -61,7 +63,14 @@ const api = {
   },
 
   system: {
-    watch: on => ipcRenderer.invoke('system:watch', !!on)
+    watch: on => ipcRenderer.invoke('system:watch', !!on),
+    inventory: () => ipcRenderer.invoke('system:inventory')
+  },
+
+  speedtest: {
+    run: () => ipcRenderer.invoke('speedtest:run'),
+    history: () => ipcRenderer.invoke('speedtest:history'),
+    clear: () => ipcRenderer.invoke('speedtest:clear')
   },
 
   reminders: {

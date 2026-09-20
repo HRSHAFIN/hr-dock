@@ -13,7 +13,10 @@
   };
   // Tabs that only exist while their module is switched on.
   const OPTIONAL_TABS = { workouts: 'workouts' };
-  const TAB_ORDER = Object.keys(TAB_ICONS);
+  // Settings is a real view but not a tab: it is reached from the header gear,
+  // and having it in both places made one panel look like two features. It
+  // stays out of the cycle order so Ctrl+1..8 maps to the eight visible tabs.
+  const TAB_ORDER = Object.keys(TAB_ICONS).filter(tab => tab !== 'settings');
 
   let currentTab = 'today';
 
@@ -24,7 +27,11 @@
   function moveIndicator() {
     const indicator = $('#tabIndicator');
     const active = $(`.tab[data-tab="${currentTab}"]`);
-    if (!indicator || !active) return;
+    if (!indicator) return;
+    // Settings and any switched-off module have no button to sit under.
+    // Leaving the bar parked on the last tab would point at the wrong thing.
+    if (!active || active.hidden) { indicator.style.opacity = '0'; return; }
+    indicator.style.opacity = '';
     const width = Math.max(18, active.offsetWidth - 18);
     indicator.style.width = `${width}px`;
     indicator.style.transform = `translateX(${active.offsetLeft + (active.offsetWidth - width) / 2}px)`;
