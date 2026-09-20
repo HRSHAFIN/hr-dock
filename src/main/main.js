@@ -532,20 +532,10 @@ function registerIpc() {
       speedtest.on('progress', p => send('speedtest:progress', p));
     }
     try {
-      const result = await speedtest.run();
-      store.data.speedtests = [result, ...(store.data.speedtests || [])].slice(0, 20);
-      store.save();
-      return { ok: true, result, history: store.data.speedtests };
+      return { ok: true, result: await speedtest.run() };
     } catch (err) {
       return { ok: false, error: err.message };
     }
-  });
-
-  ipcMain.handle('speedtest:history', () => store.data.speedtests || []);
-  ipcMain.handle('speedtest:clear', () => {
-    store.data.speedtests = [];
-    store.save();
-    return [];
   });
 
   ipcMain.handle('reminder:snooze', (_e, { reminder, minutes }) => reminders.snooze(reminder, minutes));

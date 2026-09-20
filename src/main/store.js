@@ -63,7 +63,6 @@ const DEFAULTS = {
   events: [],
   routines: [],
   workouts: [],
-  speedtests: [],                  // most recent 20 internet speed tests
   todos: [],
   notes: [],
   stats: {

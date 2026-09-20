@@ -68,9 +68,7 @@ const api = {
   },
 
   speedtest: {
-    run: () => ipcRenderer.invoke('speedtest:run'),
-    history: () => ipcRenderer.invoke('speedtest:history'),
-    clear: () => ipcRenderer.invoke('speedtest:clear')
+    run: () => ipcRenderer.invoke('speedtest:run')
   },
 
   reminders: {

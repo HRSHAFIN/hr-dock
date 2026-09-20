@@ -203,11 +203,16 @@ either means shipping a signed kernel driver and running elevated — a large
 change in what this widget is, for two figures. GPU temperature and fan speed
 *are* shown, because the graphics driver already exposes them.
 
-**Internet speed test** — download, upload, ping, jitter, the edge that served
-the test, and a history of the last twenty runs. Latency is time-to-first-byte
-over several probes with the handshake discarded; throughput grows the payload
-until a transfer runs long enough to have left TCP slow-start behind, and
-reports the largest. It runs only when you press the button.
+**Internet speed test** — download and upload in MB/s, ping, idle latency, and
+the edge that served the test. Throughput grows the payload until a transfer
+runs long enough to have left TCP slow-start behind, and reports the largest.
+
+The two latency figures are the interesting pair. Idle latency is measured with
+the line quiet; ping is measured *while the download is saturating it*, by
+probing alongside the transfer rather than after it. The gap between them is
+bufferbloat — how far your connection's responsiveness falls once it is
+actually working, which is what a call or a game feels and what a single idle
+ping figure hides. It runs only when you press the button.
 
 > It measures against Cloudflare's public speed endpoints — no account and no
 > key, and a point of presence close enough that the number means something.

@@ -59,7 +59,13 @@
     return `${(bytesPerSec / 1048576).toFixed(2)} MB/s`;
   };
 
-  const mbps = v => (Number.isFinite(v) ? `${v >= 100 ? Math.round(v) : v.toFixed(1)}` : '—');
+  /** Mbps in, MB/s out — the unit a download is actually read in. */
+  const megabytes = v => {
+    if (!Number.isFinite(v)) return '—';
+    const mb = v / 8;
+    return mb >= 10 ? mb.toFixed(1) : mb.toFixed(2);
+  };
+  const ms = v => (Number.isFinite(v) ? String(Math.round(v)) : '—');
 
   /**
    * Redraw one sparkline in place. Only the path data changes, so the SVG and
@@ -348,13 +354,12 @@
           <button class="ghost-btn sm" data-ref="speedRun">Run test</button>
         </div>
         <div class="st-dials">
-          <div class="st-dial"><b data-ref="stDown">—</b><small>Mbps down</small></div>
-          <div class="st-dial"><b data-ref="stUp">—</b><small>Mbps up</small></div>
+          <div class="st-dial"><b data-ref="stDown">—</b><small>MB/s down</small></div>
+          <div class="st-dial"><b data-ref="stUp">—</b><small>MB/s up</small></div>
           <div class="st-dial"><b data-ref="stPing">—</b><small>ms ping</small></div>
-          <div class="st-dial"><b data-ref="stJitter">—</b><small>ms jitter</small></div>
+          <div class="st-dial"><b data-ref="stIdle">—</b><small>ms idle latency</small></div>
         </div>
         <p class="st-status" data-ref="stStatus">Measures against Cloudflare's speed service — the only request this widget makes besides the weather.</p>
-        <div class="st-history" data-ref="stHistory"></div>
       </div>
 
       <!-- ------------------------------------------------------ machine -->
@@ -381,7 +386,6 @@
     built = true;
 
     refs.speedRun.addEventListener('click', runSpeedTest);
-    renderSpeedHistory();
   }
 
   // ----------------------------------------------------------- per sample
@@ -551,32 +555,21 @@
   // ------------------------------------------------------------ speedtest
 
   function showResult(result) {
-    setText(refs.stDown, mbps(result.down));
-    setText(refs.stUp, mbps(result.up));
-    setText(refs.stPing, result.ping === null ? '—' : Math.round(result.ping).toString());
-    setText(refs.stJitter, result.jitter === null ? '—' : Math.round(result.jitter).toString());
+    setText(refs.stDown, megabytes(result.down));
+    setText(refs.stUp, megabytes(result.up));
+    setText(refs.stPing, ms(result.ping));
+    setText(refs.stIdle, ms(result.idle));
+
+    // The pair only says something together: how far latency moves once the
+    // line is working is the part a call or a game feels.
+    const bloat = Number.isFinite(result.ping) && Number.isFinite(result.idle)
+      ? Math.round(result.ping - result.idle) : null;
+    const when = new Date(result.ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
     setText(refs.stStatus,
-      `${result.server ? `Measured against ${result.server}` : 'Measured'} · ${DT.relativeDay(DT.key(new Date(result.ts)))} `
-      + `${new Date(result.ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} · took ${(result.took / 1000).toFixed(1)}s`);
-  }
-
-  async function renderSpeedHistory(history) {
-    if (!refs.stHistory) return;
-    const list = history || await hrdock.speedtest.history();
-    if (!list || !list.length) { refs.stHistory.innerHTML = ''; return; }
-
-    if (!history) showResult(list[0]);
-
-    refs.stHistory.innerHTML = `
-      <div class="st-head">Recent tests</div>
-      ${list.slice(0, 6).map(r => `
-        <div class="st-row">
-          <span>${esc(new Date(r.ts).toLocaleDateString([], { day: 'numeric', month: 'short' }))}
-            ${esc(new Date(r.ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))}</span>
-          <b>${mbps(r.down)}<small>↓</small></b>
-          <b>${mbps(r.up)}<small>↑</small></b>
-          <em>${r.ping === null ? '—' : Math.round(r.ping) + ' ms'}</em>
-        </div>`).join('')}`;
+      `${result.server ? `Measured against ${result.server}` : 'Measured'} at ${when}, `
+      + `took ${(result.took / 1000).toFixed(1)}s. Ping is taken while the line is busy and `
+      + `idle latency with it quiet${bloat !== null && bloat > 0 ? `, so load is costing you ${bloat} ms` : ''}.`);
   }
 
   async function runSpeedTest() {
@@ -585,16 +578,12 @@
     refs.speedRun.disabled = true;
     refs.speedRun.textContent = 'Testing…';
     setText(refs.stStatus, 'Starting…');
-    for (const key of ['stDown', 'stUp', 'stPing', 'stJitter']) setText(refs[key], '—');
+    for (const key of ['stDown', 'stUp', 'stPing', 'stIdle']) setText(refs[key], '—');
 
     try {
       const response = await hrdock.speedtest.run();
-      if (!response.ok) {
-        setText(refs.stStatus, `Test failed: ${response.error}`);
-      } else {
-        showResult(response.result);
-        renderSpeedHistory(response.history);
-      }
+      if (!response.ok) setText(refs.stStatus, `Test failed: ${response.error}`);
+      else showResult(response.result);
     } catch (err) {
       setText(refs.stStatus, `Test failed: ${err.message}`);
     } finally {
@@ -647,8 +636,8 @@
     });
     hrdock.on('speedtest:progress', p => {
       if (!speedRunning) return;
-      if (p.phase === 'download') setText(refs.stDown, mbps(p.speed));
-      if (p.phase === 'upload') setText(refs.stUp, mbps(p.speed));
+      if (p.phase === 'download') setText(refs.stDown, megabytes(p.speed));
+      if (p.phase === 'upload') setText(refs.stUp, megabytes(p.speed));
     });
 
     // Follow the active tab: the monitor is the only module that costs

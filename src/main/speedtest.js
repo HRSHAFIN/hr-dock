@@ -63,16 +63,24 @@ function request(options, body, onBytes) {
   });
 }
 
-/** Time to first byte, several times over, for latency and jitter. */
-async function latency(samples = 6) {
+/**
+ * Time to first byte, several times over.
+ *
+ * Taken twice during a run: once with the line quiet, and once while the
+ * download is saturating it. The quiet figure is the one people mean by
+ * latency; the busy one is what a call actually sounds like while someone else
+ * in the house is downloading, and the gap between them is bufferbloat.
+ */
+async function latency(samples = 6, whileActive) {
   const times = [];
   let colo = null;
-  for (let i = 0; i < samples; i++) {
+  for (let i = 0; whileActive ? whileActive() : i < samples; i++) {
     try {
       const r = await request({ path: DOWN(0), method: 'GET' });
       if (r.ttfb !== null) times.push(r.ttfb);
       if (r.colo) colo = r.colo;
     } catch (_) { /* one lost sample does not sink the run */ }
+    if (whileActive && times.length > 40) break;   // a stuck transfer is not a reason to probe forever
   }
   if (!times.length) return { ping: null, jitter: null, colo };
 
@@ -147,21 +155,28 @@ class SpeedTest extends EventEmitter {
 
     try {
       this.emit('phase', { phase: 'latency' });
-      const { ping, jitter, colo: pingColo } = await latency();
+      const idle = await latency();
 
+      // Probe latency alongside the download rather than after it: the number
+      // only means anything while the line is under load.
       this.emit('phase', { phase: 'download' });
+      let downloading = true;
+      const loadedProbe = latency(0, () => downloading);
       const down = await measure('down', speed => this.emit('progress', { phase: 'download', speed }));
+      downloading = false;
+      const loaded = await loadedProbe;
 
       this.emit('phase', { phase: 'upload' });
       const up = await measure('up', speed => this.emit('progress', { phase: 'upload', speed }));
 
       const result = {
         id: 'st_' + started.toString(36),
-        down: down.speed,
+        down: down.speed,                 // Mbps; the UI renders MB/s
         up: up.speed,
-        ping,
-        jitter,
-        server: down.colo || up.colo || pingColo || null,
+        ping: loaded.ping === null ? idle.ping : loaded.ping,   // under load
+        idle: idle.ping,                  // with the line quiet
+        jitter: idle.jitter,
+        server: down.colo || up.colo || idle.colo || null,
         host: HOST,
         ts: started,
         took: Date.now() - started
