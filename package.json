@@ -13,7 +13,8 @@
     "test": "node test/run.js",
     "icon": "node scripts/make-icon.js",
     "dist": "electron-builder --win nsis portable",
-    "pack": "electron-builder --dir"
+    "pack": "electron-builder --dir",
+    "refresh": "node scripts/refresh.js"
   },
   "devDependencies": {
     "electron": "^33.2.0",
