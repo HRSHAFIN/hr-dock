@@ -204,15 +204,39 @@ change in what this widget is, for two figures. GPU temperature and fan speed
 *are* shown, because the graphics driver already exposes them.
 
 **Internet speed test** — download and upload in MB/s, ping, idle latency, and
-the edge that served the test. Throughput grows the payload until a transfer
-runs long enough to have left TCP slow-start behind, and reports the largest.
+the edge that served the test. It runs only when you press the button.
+
+*How it measures, because the method is the difference between a number and a
+guess:*
+
+- **Four streams at once.** One TCP connection cannot fill a fast line — it is
+  bounded by window size over round-trip time, so a single stream under-reports
+  badly against a distant server. Measured here: 51 Mbps on one stream against
+  79 on four. Eight adds nothing, so four it is.
+- **Each stream is kept busy.** A transfer that finishes mid-window would leave
+  its stream idle while the clock ran; workers start the next one immediately.
+- **The warm-up is thrown away.** The first second and a half is TCP feeling
+  out the path, and counting it drags the figure below what the line does.
+- **Uploads are counted on receipt.** Handing a buffer to a socket is not the
+  same as putting it on the wire: the socket and the TLS layer will accept
+  megabytes that have not left the machine. Counting writes reported this line
+  at 646 Mbps up against 79 down. Only payloads the server has acknowledged
+  are counted.
+- **Every response is checked.** The endpoint refuses payloads of 100MB and up
+  with a 403 and a one-byte body, and rate-limits bursts with a 429. Measuring
+  those bodies is how a speed test reports nonsense with total confidence — so
+  a refusal is surfaced as a refusal.
+- **Latency is a median over a kept-alive connection,** so it is round-trip
+  time and not a TLS handshake, and one stalled sample cannot move it. This
+  line sits at about 55 ms and throws the occasional 800 ms stall; a mean put
+  that at 200 ms.
 
 The two latency figures are the interesting pair. Idle latency is measured with
 the line quiet; ping is measured *while the download is saturating it*, by
 probing alongside the transfer rather than after it. The gap between them is
 bufferbloat — how far your connection's responsiveness falls once it is
 actually working, which is what a call or a game feels and what a single idle
-ping figure hides. It runs only when you press the button.
+ping figure hides.
 
 > It measures against Cloudflare's public speed endpoints — no account and no
 > key, and a point of presence close enough that the number means something.
