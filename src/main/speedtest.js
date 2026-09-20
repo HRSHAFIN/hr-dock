@@ -16,12 +16,15 @@
  *   - Several streams at once. One TCP connection cannot fill a fast line: it
  *     is bounded by window size over round-trip time, so a single stream
  *     under-reports badly on a distant server. Measured on the development
- *     machine: 51 Mbps down on one stream against 78 on four, and 83 Mbps up
- *     against 166. Four saturates; eight adds nothing.
- *   - A warm-up is thrown away. The first second and a half is TCP feeling out
- *     the path, and counting it drags the average below what the line does.
- *   - Throughput is bytes over wall-clock across a fixed window, not the size
- *     of one transfer over its own duration.
+ *     machine: 51 Mbps down on one stream against 79 on four. Four saturates;
+ *     eight adds nothing.
+ *   - Download and upload are measured differently, because they can be
+ *     trusted differently. A download is counted as it arrives, over a fixed
+ *     window with the first 1.5s of slow-start discarded — the bytes are in
+ *     hand, and the figure repeats to within 0.1 MB/s. An upload has no such
+ *     ground truth: this endpoint answers before it has finished reading, so
+ *     the same payload times at 2.6s and then 15.9s. That leg is run as whole
+ *     transfers, several rounds of them, and the median is reported.
  *   - Every response is checked. The endpoint refuses payloads of 100MB and
  *     up with a 403 and a one-byte body, and it will rate-limit a burst the
  *     same way; counting those bodies as data is how a speed test reports
@@ -40,9 +43,11 @@ const DOWN = bytes => `/__down?bytes=${bytes}`;
 // Anything from 100MB up is refused outright, so each stream asks for less and
 // is simply cut off when the measurement window closes.
 const CHUNK_BYTES = 50e6;
-// Uploads go in smaller pieces: each one is only counted once the server
-// acknowledges it, so the pieces have to land often enough to fill the window.
-const UPLOAD_BYTES = 8e6;
+// Upload is measured as whole transfers, repeated, because a single reading
+// against this endpoint means nothing. Three rounds is enough for the median
+// to settle without spending a quarter of a gigabyte to find out.
+const UPLOAD_BYTES = 10e6;
+const UPLOAD_ROUNDS = 3;
 const STREAMS = 4;
 const WARMUP_MS = 1500;
 const WINDOW_MS = 6000;
@@ -91,16 +96,15 @@ function pull(bytes, onBytes, stopped) {
 }
 
 /**
- * One request that writes until the window closes.
+ * One upload, resolved when the server answers.
  *
- * Nothing is counted here. Handing a buffer to `write()` is not the same as
- * putting it on the wire — the socket and the TLS layer will accept megabytes
- * that have not left the machine, and a request destroyed at the end of the
- * window takes whatever is still queued with it. Counting writes reported this
- * line at 598 Mbps up against 79 down. The meter is the socket's own
- * `bytesWritten`, read by the caller.
+ * Nothing is counted from the writing side. Handing a buffer to write() is not
+ * the same as putting it on the wire: the socket and the TLS layer will accept
+ * megabytes that have not left the machine, and the socket's own written-bytes
+ * counter is no better. Counting either reported this line at 646 Mbps up
+ * against 79 Mbps down.
  */
-function push(bytes, onDelivered) {
+function push(bytes) {
   return new Promise(resolve => {
     const req = https.request(
       {
@@ -114,12 +118,7 @@ function push(bytes, onDelivered) {
       res => {
         res.resume();
         if (res.statusCode !== 200) { resolve({ rejected: res.statusCode }); return; }
-        res.on('end', () => {
-          // The response is the receipt: only now is this payload known to
-          // have arrived, so only now is it counted.
-          onDelivered(bytes);
-          resolve({ colo: res.headers['cf-meta-colo'] || null });
-        });
+        res.on('end', () => resolve({ ok: true, colo: res.headers['cf-meta-colo'] || null }));
       });
 
     req.on('error', () => resolve({ failed: true }));
@@ -129,24 +128,70 @@ function push(bytes, onDelivered) {
 }
 
 /**
- * Run several streams at once and measure what arrives during the window,
- * after the warm-up has been discarded.
+ * Upload, measured as whole transfers rather than over a window.
+ *
+ * The endpoint will not say honestly when it has finished reading a body: the
+ * same 25MB payload came back in 2.6s once and 15.9s the next time, and four
+ * parallel 25MB uploads have reported anything between 25 and 598 Mbps. So a
+ * single reading is worthless whatever it is counting.
+ *
+ * What does hold up is the median of several rounds. Three trials of this came
+ * back at 204, 258 and 224 Mbps where the raw rounds inside them spanned 128
+ * to 413 — the middle round is a number worth printing, and one round is not.
  */
-async function measure(direction, onProgress) {
+async function measureUpload(onProgress) {
+  const rounds = [];
+  let colo = null;
+  let lastStatus = 0;
+
+  for (let round = 0; round < UPLOAD_ROUNDS; round++) {
+    const started = Date.now();
+    const results = await Promise.all(
+      Array.from({ length: STREAMS }, () => push(UPLOAD_BYTES)));
+
+    const delivered = results.filter(r => r.ok);
+    const refused = results.find(r => r.rejected);
+    if (refused) lastStatus = refused.rejected;
+    if (!delivered.length) continue;
+
+    colo = colo || (delivered.find(r => r.colo) || {}).colo || null;
+    const speed = mbps(delivered.length * UPLOAD_BYTES, Date.now() - started);
+    rounds.push(speed);
+    if (onProgress) onProgress(median(rounds));
+    await sleep(600);
+  }
+
+  if (!rounds.length) {
+    if (lastStatus === 429) {
+      throw new Error('the test server is rate-limiting this connection — '
+        + 'wait a few minutes and run it again');
+    }
+    throw new Error(lastStatus
+      ? `the test server refused the upload (HTTP ${lastStatus})`
+      : 'no data moved during the upload');
+  }
+
+  return {
+    speed: median(rounds),
+    bytes: rounds.length * STREAMS * UPLOAD_BYTES,
+    rounds: rounds.length,
+    colo
+  };
+}
+
+/**
+ * Download, measured over a fixed window with several streams running.
+ *
+ * Bytes are counted as they arrive, which for a download is the truth of it:
+ * the data is in hand. Repeatable here to within 0.1 MB/s across runs.
+ */
+async function measureDownload(onProgress) {
   let bytes = 0;
   let finished = false;
   const stopped = () => finished;
 
-  // A download is counted as it arrives, which is the truth of it. An upload is
-  // counted only when the server answers, because nothing else proves the bytes
-  // got there: handing a buffer to write() puts it in a queue, and both the
-  // socket's own counter and the queue will happily report a line at 646 Mbps
-  // up against 79 down.
   const meter = () => bytes;
-  const size = direction === 'down' ? CHUNK_BYTES : UPLOAD_BYTES;
-  const move = direction === 'down'
-    ? stop => pull(size, n => { bytes += n; }, stop)
-    : () => push(size, n => { bytes += n; });
+  const move = stop => pull(CHUNK_BYTES, n => { bytes += n; }, stop);
 
   // Each worker keeps a transfer in flight for the whole window. Firing one
   // request per stream and waiting is not enough: on a fast line a 50MB
@@ -176,7 +221,7 @@ async function measure(direction, onProgress) {
     if (elapsed > 300 && onProgress) onProgress(mbps(meter() - from, elapsed));
   }, 400);
 
-  await sleep(direction === 'down' ? WINDOW_MS : WINDOW_MS + 2000);
+  await sleep(WINDOW_MS);
   clearInterval(ticker);
 
   const moved = meter() - from;
@@ -189,7 +234,7 @@ async function measure(direction, onProgress) {
 
   if (!moved) {
     const status = rejected ? results.find(r => r.rejected).rejected : 0;
-    const leg = direction === 'down' ? 'download' : 'upload';
+    const leg = 'download';
     // A refusal has to say so. Measuring the body of a 429 is exactly how a
     // speed test ends up reporting a confident, meaningless number.
     if (status === 429) {
@@ -275,12 +320,12 @@ class SpeedTest extends EventEmitter {
       this.emit('phase', { phase: 'download' });
       let downloading = true;
       const loadedProbe = latency(0, () => downloading);
-      const down = await measure('down', speed => this.emit('progress', { phase: 'download', speed }));
+      const down = await measureDownload( speed => this.emit('progress', { phase: 'download', speed }));
       downloading = false;
       const loaded = await loadedProbe;
 
       this.emit('phase', { phase: 'upload' });
-      const up = await measure('up', speed => this.emit('progress', { phase: 'upload', speed }));
+      const up = await measureUpload(speed => this.emit('progress', { phase: 'upload', speed }));
 
       const result = {
         id: 'st_' + started.toString(36),
@@ -292,6 +337,7 @@ class SpeedTest extends EventEmitter {
         idle: idle.ping,                  // with the line quiet
         jitter: idle.jitter,
         streams: STREAMS,
+        uploadRounds: up.rounds,
         server: down.colo || up.colo || idle.colo || null,
         host: HOST,
         ts: started,

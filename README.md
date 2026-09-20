@@ -217,11 +217,16 @@ guess:*
   its stream idle while the clock ran; workers start the next one immediately.
 - **The warm-up is thrown away.** The first second and a half is TCP feeling
   out the path, and counting it drags the figure below what the line does.
-- **Uploads are counted on receipt.** Handing a buffer to a socket is not the
-  same as putting it on the wire: the socket and the TLS layer will accept
-  megabytes that have not left the machine. Counting writes reported this line
-  at 646 Mbps up against 79 down. Only payloads the server has acknowledged
-  are counted.
+- **Download and upload are measured differently, because they can be trusted
+  differently.** A download is counted as it arrives — the bytes are in hand,
+  and the figure repeats to within 0.1 MB/s. An upload has no such ground
+  truth here: handing a buffer to a socket is not putting it on the wire (the
+  socket and TLS layer accept megabytes that never left, which reported this
+  line at 646 Mbps up against 79 down), and the endpoint answers *before* it
+  has finished reading, so the same payload times at 2.6s and then 15.9s. That
+  leg is run as whole transfers, three rounds of them, and the median is
+  reported. Across trials that lands within about 12%, where single rounds
+  spanned 128 to 413 Mbps.
 - **Every response is checked.** The endpoint refuses payloads of 100MB and up
   with a 403 and a one-byte body, and rate-limits bursts with a 429. Measuring
   those bodies is how a speed test reports nonsense with total confidence — so
