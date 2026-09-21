@@ -7,7 +7,7 @@ internet speed test, and a clock, calendar, tasks, live weather, notes and remin
 in one frameless, draggable widget that starts with Windows.
 
 **Download:** [the latest release](https://github.com/HRSHAFIN/hr-dock/releases/latest)
-— unzip `HR Dock <version> Setup.zip` and run the installer.
+— take the file ending in `Setup.zip`, unzip it, and run the installer inside.
 
 Local-first. Everything you write — tasks, notes, routines, workouts — lives in a
 single JSON file on your machine and never leaves it. The app makes three kinds of
