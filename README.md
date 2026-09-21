@@ -1,13 +1,20 @@
 # HR Dock
 
 An always-visible Windows desktop dashboard built around **following your routines**:
-your week as a timetable, a step-by-step checklist for today, streaks and consistency
-reporting that tell you the truth — plus a clock, calendar, tasks, live weather,
-notes, reminders and system monitoring, in one frameless, draggable widget that
-starts with Windows.
+your week as a timetable, a checklist for today, and progress counted in the hours you
+actually put in — plus a workout log, a full hardware monitor with power draw, an
+internet speed test, and a clock, calendar, tasks, live weather, notes and reminders,
+in one frameless, draggable widget that starts with Windows.
 
-Local-first. Everything lives in a single JSON file on your machine; the only
-network request the app ever makes is the weather lookup.
+**Download:** [the latest release](https://github.com/HRSHAFIN/hr-dock/releases/latest)
+— unzip `HR Dock <version> Setup.zip` and run the installer.
+
+Local-first. Everything you write — tasks, notes, routines, workouts — lives in a
+single JSON file on your machine and never leaves it. The app makes three kinds of
+network request, each for a feature you can see: the weather (Open-Meteo), your
+approximate location for it (ipapi.co, falling back to ip-api.com — choosing a city
+in Settings stops this), and the speed test (Cloudflare, only when you press its
+button).
 
 
 <p align="center">
@@ -18,6 +25,7 @@ network request the app ever makes is the weather lookup.
   <img src="docs/screenshots/calendar.png" width="230" alt="Calendar">
   <img src="docs/screenshots/notes.png" width="230" alt="Notes">
   <img src="docs/screenshots/workouts.png" width="230" alt="The workout log">
+  <img src="docs/screenshots/system.png" width="230" alt="The hardware monitor">
 </p>
 
 ---
@@ -27,8 +35,9 @@ network request the app ever makes is the weather lookup.
 ```bash
 npm install          # if the Electron binary fails to download, run: node node_modules/electron/install.js
 npm start            # launch the widget
-npm test             # run the test suite (52 checks, no dependencies)
-npm run dist         # build a Windows installer + portable exe into dist/
+npm test             # run the test suite (60 checks, no dependencies)
+npm run refresh      # push source changes into the built app in about a second
+npm run dist         # build the installer, a setup zip and a portable zip into dist/
 ```
 
 First launch parks the widget near the top-right of the primary display, adds a
@@ -66,7 +75,8 @@ tasks that roll forward to their next occurrence when completed, filters
 
 **Routines — the centre of the app.** A routine is a named set of timed steps that
 repeats on the weekdays you choose — classes, study blocks, meals, chores, work,
-winding down. Not a workout planner — anything you do on a schedule belongs here.
+winding down. Training has its own tab (below); anything else you do on a schedule
+belongs here.
 The app opens on this tab, because creating a routine is the easy part and
 following one is the point.
 
@@ -245,9 +255,9 @@ ping figure hides.
 
 > It measures against Cloudflare's public speed endpoints — no account and no
 > key, and a point of presence close enough that the number means something.
-> This is the only request the app makes besides the optional weather lookup,
-> and like the weather it is opt-in by action: nothing is sent unless you start
-> a test.
+> Nothing is sent unless you start a test. Run several back to back and
+> Cloudflare will refuse with a 429 for a few minutes; the widget says so rather
+> than reporting a number.
 
 **Settings** — one panel, reached from the gear in the header. It used to be a
 tab as well; two doors into one room made it look like two features.
@@ -297,9 +307,13 @@ src/
   main/          Electron main process — no UI code
     main.js      window, tray, autostart, IPC, global shortcuts, display handling
     store.js     single-JSON store: atomic writes, debounced flushes, rolling backups
-    weather.js   Open-Meteo client (all networking lives here)
-    system.js    CPU/RAM from Node; disks, battery, net and thermals from one
-                 long-lived PowerShell helper that only runs while the tab is open
+    weather.js   Open-Meteo weather, and IP-based location to point it at
+    speedtest.js internet speed test against Cloudflare — the only other code
+                 that touches the network
+    system.js    hardware inventory, queried once and cached, plus a streaming
+                 PowerShell helper (clocks, disk and network throughput,
+                 nvidia-smi telemetry, RAPL package power) that only runs while
+                 the System tab is open
     reminders.js reminder engine: one 15s tick re-derives what is due
                  (events, routine steps + follow-up nudges, tasks, birthdays)
   preload/
@@ -311,7 +325,7 @@ src/
     css/         base tokens & theming, layout, components
     js/          one module per feature, plain scripts with a global namespace
 test/            npm test
-scripts/         icon generator, demo-data seeder
+scripts/         icon generator, demo-data seeder, refresh, setup-zip packager
 ```
 
 **Why no framework or bundler.** Startup cost and idle cost are the whole point of a
@@ -351,7 +365,7 @@ different stack; everything else here (startup, idle CPU, disk writes) is cheap.
 
 Everything is in `%APPDATA%/HR Dock/`:
 
-- `hrdock-data.json` — settings, events, routines, tasks, notes, stats, window bounds
+- `hrdock-data.json` — settings, events, routines, workouts, tasks, notes, stats, window bounds
 - `backups/` — the ten most recent snapshots
 
 Settings → Data offers backup, restore from any snapshot, export and import (an
@@ -371,8 +385,17 @@ import always takes a safety backup first), and a shortcut to the folder.
   Windows 10 it falls back to a CSS glass surface. Switching backdrop in Settings
   recreates the window, which is a brief flicker by design — the backdrop is a
   property of the OS window handle.
-- **Thermals and battery** are read from WMI and simply do not exist on many desktops;
-  those gauges are hidden rather than faked.
+- **CPU temperature and motherboard fans** cannot be read on most desktops without a
+  signed kernel driver. The System tab says so in place of a number rather than
+  inventing one. GPU temperature and fan speed are shown, because the graphics driver
+  exposes them; battery appears only when there is one.
+- **Upload is the noisiest speed figure.** Cloudflare's upload endpoint answers before
+  it has finished reading a body, so no single upload can be timed honestly. It is
+  reported as the median of three whole transfers and wanders more between runs than
+  download, ping or latency do.
+- **Power draw is part measured, part declared.** Processor and graphics card are real
+  readings; the rest of the machine is an allowance you set, because nothing on a
+  desktop reports it.
 - **Weather** needs an internet connection on first run to resolve your location.
   Manual location works offline once set, and the last reading is cached.
 - **Autostart in development** registers the Electron binary with the project path.
@@ -384,11 +407,13 @@ import always takes a safety backup first), and a shortcut to the folder.
 
 ```bash
 npm run dev          # opens DevTools alongside the widget
-npm test             # date maths, recurrence, task rollover, reminder engine
+npm test             # date maths, recurrence, task rollover, reminder engine,
+                     # store defaults, speed-test arithmetic
+npm run refresh      # repack the app into dist/win-unpacked — no installer, ~1s
 npm run icon         # regenerate assets/icon.png and build/icon.ico
 ```
 
-Two test affordances are built into the main process:
+Test affordances built into the main process, all inert in normal use:
 
 ```bash
 # run against a throwaway profile with realistic demo data
@@ -399,8 +424,18 @@ HRDOCK_USER_DATA=/tmp/profile npm start
 HRDOCK_USER_DATA=/tmp/profile npx electron . --capture=/tmp/shot.png
 ```
 
-`HRDOCK_CAPTURE_DELAY` (ms) controls how long to wait before the capture — useful for
-the System tab, whose first disk reading takes a couple of seconds.
+The capture can be steered with environment variables:
+
+| Variable | Effect |
+| --- | --- |
+| `HRDOCK_CAPTURE_DELAY` | ms to wait before capturing. The System tab wants ~12000: its inventory query takes a few seconds. |
+| `HRDOCK_CAPTURE_CLICK` | a CSS selector to click first, e.g. `[data-ref='speedRun']` to photograph a speed test |
+| `HRDOCK_CAPTURE_SETTLE` | ms to wait after that click |
+| `HRDOCK_CAPTURE_SCROLL` | px to scroll the content pane before capturing, to reach the bottom of a long view |
+
+**One trap when launching from a shell:** if `ELECTRON_RUN_AS_NODE` is set in your
+environment, the Electron binary runs as plain Node and exits immediately with code 0 —
+no window, no error. Clear it before `npm start` or a capture.
 
 ---
 
