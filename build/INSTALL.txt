@@ -1,0 +1,43 @@
+HR Dock {version} - install
+=======================
+
+1. Run "HR Dock Setup {version}.exe".
+
+2. Windows will probably show a blue "Windows protected your PC" screen.
+   That is because this installer is not code-signed - signing needs a paid
+   certificate, not because anything is wrong with it. Click
+   "More info", then "Run anyway".
+
+3. Choose where to install (the default is your own user folder, so no
+   administrator rights are needed) and finish.
+
+HR Dock then starts in the corner of your screen and lives in the system
+tray. It has no taskbar button: use the tray icon, or Ctrl+Alt+A, to show
+and hide it.
+
+
+Upgrading from an older HR Dock
+-------------------------------
+Close the old one first - from the tray icon, choose Quit (the power button
+in the widget does the same; the other button only hides it). Your data is
+kept: it lives in %APPDATA%\HR Dock, separate from the program, and is
+upgraded in place on first launch.
+
+
+Uninstalling
+------------
+Settings > Apps > Installed apps > HR Dock > Uninstall. Your data folder is
+left behind on purpose; delete %APPDATA%\HR Dock yourself if you want it gone.
+
+
+What goes over the network
+--------------------------
+Your tasks, notes, routines and workouts never leave your machine. The app
+makes three kinds of request, all for features you can see:
+
+  - Weather, from Open-Meteo.
+  - Your approximate location, from ipapi.co (falling back to ip-api.com),
+    so the weather is for where you are. Search for a city in Settings and
+    this stops.
+  - The internet speed test, against Cloudflare - only when you press its
+    button.

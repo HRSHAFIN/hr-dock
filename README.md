@@ -410,12 +410,23 @@ the System tab, whose first disk reading takes a couple of seconds.
 npm run dist
 ```
 
-Produces two files in `dist\`:
+Produces three files in `dist\`:
 
 | File | Use |
 | --- | --- |
-| `HR Dock Setup 1.0.0.exe` | Installer — Start-menu entry, proper uninstall, and autostart points at the installed exe. Per-user, no admin needed. |
-| `HR Dock 1.0.0.exe` | Portable — one file, runs from anywhere. Unpacks to `%TEMP%` on each launch, so it starts a little slower. |
+| `HR Dock 1.1.0 Setup.zip` | **The one to hand to someone.** The installer plus `INSTALL.txt`, which explains the SmartScreen warning they are about to see, how to upgrade without losing data, and what the app sends over the network. |
+| `HR Dock Setup 1.1.0.exe` | The installer on its own — Start-menu entry, proper uninstall, autostart pointing at the installed exe. Per-user, no admin needed. |
+| `HR Dock 1.1.0 portable.zip` | Unzip anywhere and run `HR Dock.exe`. Nothing is installed. |
+
+There used to be a single-file portable `.exe` as well. It is gone on purpose: it
+unpacked itself into a random folder under `%TEMP%` on every launch, so an old copy
+sitting in `dist\` looked exactly like the new one while running code from weeks
+earlier — and because the app holds a single-instance lock, starting the real build
+while that one was alive just raised the old window. The portable zip does the same
+job without the disguise.
+
+The setup zip is assembled by `scripts/setup-zip.js`, which npm runs automatically
+after `dist`. The install note lives in `build/INSTALL.txt` with `{version}` filled in.
 
 Both are unsigned, so SmartScreen shows *"Windows protected your PC"* the first time:
 **More info → Run anyway**. Signing needs a paid code-signing certificate; set `CSC_LINK`
@@ -434,10 +445,13 @@ npm run dist
 
 The two macOS `.dylib` symlinks it fails on are irrelevant to a Windows build.
 
-**Close HR Dock before rebuilding.** A running instance holds a lock on
-`distHR Dock 1.0.0.exe`; electron-builder then leaves the old portable file in place
-while happily rebuilding everything else, so you get a "new" build that runs old code.
-Quit from the tray (or the ⏻ button) first.
+**Close HR Dock before rebuilding.** A running instance holds files open in
+`dist\win-unpacked`, and a build that cannot replace them leaves you with something
+that looks new and runs old code. Quit from the tray (or the ⏻ button) first.
+
+**For a quick look at a change, skip all of this:** `npm run refresh` repacks the
+app into the existing `dist\win-unpacked` in about a second, with no installer and
+no signing toolchain involved.
 
 ## Licence
 
