@@ -449,9 +449,26 @@ Produces three files in `dist\`:
 
 | File | Use |
 | --- | --- |
-| `HR Dock 1.1.0 Setup.zip` | **The one to hand to someone.** The installer plus `INSTALL.txt`, which explains the SmartScreen warning they are about to see, how to upgrade without losing data, and what the app sends over the network. |
-| `HR Dock Setup 1.1.0.exe` | The installer on its own — Start-menu entry, proper uninstall, autostart pointing at the installed exe. Per-user, no admin needed. |
-| `HR Dock 1.1.0 portable.zip` | Unzip anywhere and run `HR Dock.exe`. Nothing is installed. |
+| `HR Dock 1.1.1 Setup.zip` | **The one to hand to someone.** The installer plus `INSTALL.txt`, which explains the SmartScreen warning they are about to see, how to upgrade without losing data, and what the app sends over the network. |
+| `HR Dock Setup 1.1.1.exe` | The installer on its own — Start-menu entry, proper uninstall, autostart pointing at the installed exe. Installs for everyone into Program Files, so it asks for administrator permission once; HR Dock itself runs as the user. |
+| `HR Dock 1.1.1 portable.zip` | Unzip anywhere and run `HR Dock.exe`. Nothing is installed. |
+
+**Why the installer asks for administrator permission.** 1.1.0 installed per user,
+without elevation, and on some machines it could not finish. Two things broke it.
+First, it could not close a running HR Dock: the app hid itself in answer to the
+installer's close request, and when the installer fell back to force-killing it,
+that failed against a copy running with other rights — *"HR Dock cannot be closed"*.
+Second, an unelevated installer pointed at Program Files (remembered from an earlier
+all-users install) cannot write there — *"Error opening file for writing"*.
+
+1.1.1 fixes both sides. The installer runs for all users, so it has the rights to
+close any running copy, write to Program Files on whichever drive holds it, and
+remove older installs whether they were per-user or per-machine. And the app now
+exits properly when something outside asks it to: Alt+F4 still hides it to the tray,
+but a plain close request — the kind an installer or `taskkill` sends — shuts it
+down through the normal path, saving anything unsaved first. Measured: it exits in
+about 600 ms, inside the second or so the installer waits before resorting to a
+force-kill.
 
 There used to be a single-file portable `.exe` as well. It is gone on purpose: it
 unpacked itself into a random folder under `%TEMP%` on every launch, so an old copy

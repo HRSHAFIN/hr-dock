@@ -506,6 +506,9 @@
 
     window.addEventListener('resize', UI.throttle(moveIndicator, 80));
     window.addEventListener('beforeunload', () => { Notes.flush(); State.flushAll(); });
+    // Asked to exit from outside — an installer, say. Hand over what is still
+    // in a debounce before the main process flushes the store and goes.
+    hrdock.on('app:quitting', () => { Notes.flush(); State.flushAll(); });
 
     // Reveal only once the first paint is genuinely ready.
     requestAnimationFrame(() => { document.body.classList.add('ready'); moveIndicator(); });

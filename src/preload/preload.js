@@ -17,7 +17,8 @@ const EVENTS = [
   'settings:changed',
   'state:changed',
   'data:replaced',
-  'theme:changed'
+  'theme:changed',
+  'app:quitting'
 ];
 
 const listeners = new Map();

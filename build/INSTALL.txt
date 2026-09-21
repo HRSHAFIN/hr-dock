@@ -8,8 +8,12 @@ HR Dock {version} - install
    certificate, not because anything is wrong with it. Click
    "More info", then "Run anyway".
 
-3. Choose where to install (the default is your own user folder, so no
-   administrator rights are needed) and finish.
+3. Windows then asks whether to let the installer make changes. Click Yes.
+   HR Dock installs into Program Files for everyone on this PC, which is
+   why it needs that permission once. HR Dock itself runs as you, not as
+   an administrator.
+
+4. Choose a folder if you want a different one, and finish.
 
 HR Dock then starts in the corner of your screen and lives in the system
 tray. It has no taskbar button: use the tray icon, or Ctrl+Alt+A, to show
@@ -18,10 +22,16 @@ and hide it.
 
 Upgrading from an older HR Dock
 -------------------------------
-Close the old one first - from the tray icon, choose Quit (the power button
-in the widget does the same; the other button only hides it). Your data is
-kept: it lives in %APPDATA%\HR Dock, separate from the program, and is
-upgraded in place on first launch.
+Just run the new installer. If HR Dock is open, the installer says so and
+closes it for you when you click OK. Any older copy is removed, whether it
+was installed for you alone or for everyone.
+
+Your data is kept: it lives in %APPDATA%\HR Dock, separate from the
+program, and is upgraded in place on first launch.
+
+If an older installer stopped with "HR Dock cannot be closed" or "Error
+opening file for writing", this version fixes both. Click Cancel or Abort
+on the old one, then run this one.
 
 
 Uninstalling

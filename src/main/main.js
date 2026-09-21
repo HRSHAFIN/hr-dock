@@ -210,9 +210,35 @@ function createWindow() {
   win.on('resize', persistBounds);
   win.on('resized', persistBounds);
 
-  // Closing the widget hides it; only the tray (or an explicit quit) exits.
+  // Tell a close the user asked for apart from one Windows asked for.
+  //
+  // Alt+F4 arrives as WM_SYSCOMMAND/SC_CLOSE and only then as WM_CLOSE. That is
+  // the user dismissing the widget, and it goes to the tray exactly as the hide
+  // button does. An installer, an updater or taskkill sends a bare WM_CLOSE,
+  // and that is a request to exit. The widget used to hide in answer to both,
+  // which left the installer unable to close it: its polite request was
+  // swallowed, and it had to fall back to force-killing — which fails outright
+  // against a copy running with other rights, and throws away unsaved edits
+  // when it does succeed.
+  const WM_SYSCOMMAND = 0x0112;
+  const SC_CLOSE = 0xF060;
+  let userAskedToClose = false;
+  if (process.platform === 'win32') {
+    win.hookWindowMessage(WM_SYSCOMMAND, wParam => {
+      // The low four bits are Windows' own; the command is the rest.
+      if ((wParam.readUInt32LE(0) & 0xFFF0) === SC_CLOSE) userAskedToClose = true;
+    });
+  }
+
   win.on('close', e => {
-    if (!quitting) { e.preventDefault(); win.hide(); }
+    if (quitting) return;
+    e.preventDefault();
+    if (userAskedToClose) {
+      userAskedToClose = false;
+      win.hide();
+      return;
+    }
+    exitGracefully();
   });
   win.on('closed', () => { win = null; });
 
@@ -263,6 +289,23 @@ function setCompact(compact) {
   win.setBounds(next, true);
   store.save();
   send('state:changed', { compact: !!compact });
+}
+
+/**
+ * Leave because something outside asked us to — an installer, an updater,
+ * Windows. The renderer is given a moment to hand over whatever is still
+ * waiting in a debounce, the same as the ⏻ button does before it quits, and
+ * then the normal quit path runs: monitor and reminders stopped, store flushed.
+ * The installer allows about a second before it reaches for a force-kill, and
+ * this takes well under half of that.
+ */
+function exitGracefully() {
+  if (quitting) return;
+  quitting = true;
+  try {
+    if (win && !win.isDestroyed()) win.webContents.send('app:quitting');
+  } catch (_) { /* a renderer that cannot hear us has nothing to save */ }
+  setTimeout(() => app.quit(), 350);
 }
 
 /** Recreate the window when the backdrop material changes (needs a new HWND). */

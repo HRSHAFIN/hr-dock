@@ -1,7 +1,7 @@
 {
   "name": "hr-dock",
   "productName": "HR Dock",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "HR Dock — a premium always-on Windows desktop productivity dashboard: clock, calendar, schedule, tasks, weather, notes, reminders, analytics and system monitoring.",
   "main": "src/main/main.js",
   "author": "Hasibur Shafin",
@@ -44,7 +44,7 @@
     },
     "nsis": {
       "oneClick": false,
-      "perMachine": false,
+      "perMachine": true,
       "allowToChangeInstallationDirectory": true,
       "shortcutName": "HR Dock",
       "artifactName": "${productName} Setup ${version}.${ext}"
